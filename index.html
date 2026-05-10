@@ -167,7 +167,6 @@
         let customFontName = 'LyricFont', bgImg = new Image();
         bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
 
-        // FIXED: Offset indicator logic
         offsetSlider.oninput = () => {
             let val = parseFloat(offsetSlider.value);
             offsetDisplay.innerText = (val > 0 ? "+" : "") + val.toFixed(1) + "s";
@@ -189,8 +188,9 @@
         }
 
         function render() {
-            const elapsed = audioPlayer.currentTime * 1000;
-            const adjustedTimeSec = audioPlayer.currentTime + parseFloat(offsetSlider.value);
+            const curTime = audioPlayer.currentTime;
+            const elapsed = curTime * 1000;
+            const adjustedTimeSec = curTime + parseFloat(offsetSlider.value);
             const adjustedTimeMs = adjustedTimeSec * 1000;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -212,24 +212,22 @@
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 
-                // --- INTRO TEXT WITH FAST FADE ---
                 if (elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs) {
                     let introOp = 1;
-                    const fadeStart = firstLyricTimeMs - 250; // Faster transition start
+                    const fadeStart = firstLyricTimeMs - 250;
                     if (adjustedTimeMs > fadeStart) {
-                        introOp = 1 - ((adjustedTimeMs - fadeStart) / 250); // Matches lyric speed
+                        introOp = 1 - ((adjustedTimeMs - fadeStart) / 250);
                     }
                     
                     ctx.save(); ctx.globalAlpha = Math.max(0, introOp);
-                    ctx.font = `bold 125px "${customFontName}"`; // Bigger Title
+                    ctx.font = `bold 125px "${customFontName}"`;
                     ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 20);
-                    ctx.font = `52px "${customFontName}"`; // Bigger Artist
+                    ctx.font = `52px "${customFontName}"`;
                     ctx.fillStyle = "rgba(255,255,255,0.85)";
                     ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 70);
                     ctx.restore();
                 }
 
-                // --- LYRICS ---
                 if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
                     if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } }
                     else if (textOpacity < 1) { textOpacity += 0.25; }
@@ -267,8 +265,6 @@
                     else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); }
                     ctx.restore(); 
                     s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed;
-                    if (s.x > 5000) s.x = 0; if (s.x < 0) s.x = 5000;
-                    if (s.y > 1500) s.y = -500; if (s.y < -500) s.y = 1500;
                 });
                 
                 ctx.fillStyle = '#000000'; ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10);
@@ -289,6 +285,17 @@
                     ctx.filter = 'brightness(0)'; 
                     if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320);
                     ctx.restore();
+                }
+            }
+
+            // --- FADE TO BLACK AT END ---
+            if (audioPlayer.duration > 0) {
+                const fadeDuration = 2.0; // 2 seconds fade
+                const timeRemaining = audioPlayer.duration - curTime;
+                if (timeRemaining <= fadeDuration) {
+                    const blackOp = 1 - (timeRemaining / fadeDuration);
+                    ctx.fillStyle = `rgba(0,0,0,${blackOp})`;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
             }
 
@@ -332,20 +339,47 @@
             if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; }
         };
 
+        // FIXED: Auto-stop recording when song ends
+        audioPlayer.onended = () => {
+            if (window.mediaRecorder?.state === "recording") {
+                window.mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                statusMsg.innerText = "Recording finished & saved.";
+            }
+        };
+
         recordBtn.onclick = async () => {
-            if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
-            else {
-                const chunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1;
+            if (window.mediaRecorder?.state === "recording") { 
+                window.mediaRecorder.stop(); 
+                audioPlayer.pause(); 
+                recordBtn.classList.remove('recording'); 
+            } else {
+                const chunks = []; 
+                audioPlayer.currentTime = 0; 
+                currentLineIndex = -1;
                 const stream = canvas.captureStream(60); 
-                const ac = new AudioContext(); const dest = ac.createMediaStreamDestination();
-                ac.createMediaElementSource(audioPlayer).connect(dest); ac.createMediaElementSource(audioPlayer).connect(ac.destination);
-                window.mediaRecorder = new MediaRecorder(new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
+                const ac = new AudioContext(); 
+                const dest = ac.createMediaStreamDestination();
+                ac.createMediaElementSource(audioPlayer).connect(dest); 
+                ac.createMediaElementSource(audioPlayer).connect(ac.destination);
+                
+                window.mediaRecorder = new MediaRecorder(new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { 
+                    mimeType: 'video/webm;codecs=vp9', 
+                    videoBitsPerSecond: 15000000 
+                });
+
                 window.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
                 window.mediaRecorder.onstop = () => {
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
-                    a.download = `LOFT_${document.getElementById('title').value || 'Studio'}.mp4`; a.click();
+                    const blob = new Blob(chunks, { type: 'video/mp4' });
+                    const a = document.createElement('a'); 
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `LOFT_${document.getElementById('title').value || 'Studio'}.mp4`; 
+                    a.click();
                 };
-                window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
+
+                window.mediaRecorder.start(); 
+                audioPlayer.play(); 
+                recordBtn.classList.add('recording');
             }
         };
     </script>
