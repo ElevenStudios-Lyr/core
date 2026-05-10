@@ -65,7 +65,7 @@
         const logo = new Image(); logo.src = 'ic.png';
         
         const INTRO_DUR = 800, STAY_DUR = 2500, WIPE_DELAY = 600, OUTRO_START = INTRO_DUR + STAY_DUR;
-        const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 1500;
+        const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 1400;
 
         const memphisShapes = [];
         for (let i = 0; i < 180; i++) {
@@ -104,7 +104,6 @@
             let wipeProgress = 0;
             if (elapsed > WIPE_START) wipeProgress = easeInOutSine(Math.min(1, (elapsed - WIPE_START) / WIPE_DUR));
 
-            // CORE BACKGROUND
             if (wipeProgress > 0) {
                 ctx.save();
                 if (blurToggle.checked) ctx.filter = 'blur(8px)';
@@ -139,14 +138,15 @@
                 ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 20;
 
                 const firstLyricTime = (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999);
-                
-                // NEW PRIORITY LOGIC:
-                // If we are close to the first lyric (0.4s buffer), lyrics ALWAYS take over.
-                if (nowSeconds >= firstLyricTime - 0.4) {
+                const timeUntilLyrics = firstLyricTime - nowSeconds;
+
+                // LYRIC ENGINE (HIGHEST PRIORITY)
+                // We start showing lyrics exactly when they are due (or slightly before for fade-in)
+                if (nowSeconds >= firstLyricTime - 0.3) {
                     if (isFading) {
-                        textOpacity -= 0.25;
+                        textOpacity -= 0.3; // Snappier line transitions
                         if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; }
-                    } else if (textOpacity < 1) { textOpacity += 0.25; }
+                    } else if (textOpacity < 1) { textOpacity += 0.3; }
                     
                     if (displayedText) {
                         ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity));
@@ -155,22 +155,16 @@
                         ctx.globalAlpha = 1;
                     }
                 } 
-                // Only show Title/Artist if we are far enough away from the first lyric
-                else if (nowSeconds > (WIPE_START + 500) / 1000) {
-                    const timeUntilLyrics = firstLyricTime - nowSeconds;
+                // INTRO CARD ENGINE (ONLY SHOW IF LYRICS ARE NOT NEAR)
+                // FIX: Card is killed instantly if lyrics are less than 0.6s away.
+                else if (nowSeconds > (WIPE_START + 300) / 1000 && timeUntilLyrics > 0.6) {
                     const tStr = (document.getElementById('title').value || "LOFT STUDIO").toUpperCase();
                     const aStr = (document.getElementById('artist').value || "PRODUCER").toUpperCase();
                     
-                    // Fade out Title Card as lyrics approach
-                    let cardAlpha = 1;
-                    if (timeUntilLyrics < 1.0) cardAlpha = Math.max(0, (timeUntilLyrics - 0.4) / 0.6);
-                    
-                    ctx.globalAlpha = cardAlpha;
                     ctx.font = `bold ${getFitSize(tStr, canvas.width * 0.9, 180)}px "${customFontName}"`;
                     ctx.fillText(tStr, canvas.width/2, canvas.height/2 - 45);
                     ctx.font = `300 ${getFitSize(aStr, canvas.width * 0.8, 70)}px "${customFontName}"`;
                     ctx.fillText(aStr, canvas.width/2, canvas.height/2 + 85);
-                    ctx.globalAlpha = 1;
                 }
             }
 
