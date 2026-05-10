@@ -62,11 +62,10 @@
         const bgUpload = document.getElementById('bgUpload');
         const fontUpload = document.getElementById('fontUpload');
 
-        // UPDATED: Changed path to relative 'ic.png' for local/repo hosting
         const logo = new Image(); logo.src = 'ic.png';
         
         const INTRO_DUR = 800, STAY_DUR = 2500, WIPE_DELAY = 600, OUTRO_START = INTRO_DUR + STAY_DUR;
-        const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 2200;
+        const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 1800; // Snappier wipe
 
         const memphisShapes = [];
         for (let i = 0; i < 180; i++) {
@@ -139,20 +138,30 @@
                 const firstLyricTime = (syncedLyrics.length > 0 ? syncedLyrics[0].time : 999);
                 const wipeEndTime = (WIPE_START + WIPE_DUR) / 1000;
 
+                // BUG FIX: The intro text now exits early if the first lyric is approaching
                 if (audioPlayer.currentTime > wipeEndTime) {
-                    const timeAvailable = firstLyricTime - wipeEndTime;
-                    if (timeAvailable > 1.5 && audioPlayer.currentTime < firstLyricTime - 0.4) {
+                    const timeUntilLyrics = firstLyricTime - audioPlayer.currentTime;
+                    
+                    if (timeUntilLyrics > 0.3) {
+                        // Intro Text Logic
                         const tStr = (document.getElementById('title').value || "LOFT STUDIO").toUpperCase();
                         const aStr = (document.getElementById('artist').value || "PRODUCER").toUpperCase();
+                        
+                        // Fade out intro text slightly before lyrics start
+                        ctx.globalAlpha = timeUntilLyrics < 0.6 ? (timeUntilLyrics - 0.3) / 0.3 : 1;
+                        
                         ctx.font = `bold ${getFitSize(tStr, canvas.width * 0.9, 180)}px "${customFontName}"`;
                         ctx.fillText(tStr, canvas.width/2, canvas.height/2 - 45);
                         ctx.font = `300 ${getFitSize(aStr, canvas.width * 0.8, 70)}px "${customFontName}"`;
                         ctx.fillText(aStr, canvas.width/2, canvas.height/2 + 85);
-                    } else if (audioPlayer.currentTime >= firstLyricTime - 0.4) {
+                        ctx.globalAlpha = 1;
+                    } else {
+                        // Lyric Logic - Higher priority
                         if (isFading) {
                             textOpacity -= 0.25;
                             if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; }
                         } else if (textOpacity < 1) { textOpacity += 0.25; }
+                        
                         if (displayedText) {
                             ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity));
                             ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.92, 115)}px "${customFontName}"`;
