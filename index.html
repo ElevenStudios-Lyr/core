@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eleven Studios | Dashboard</title>
     <style>
-        /* 1. Force the browser to prioritize the font download */
         @font-face { 
             font-family: 'LyricFont'; 
             src: url('defaultfont.otf') format('opentype'); 
@@ -13,10 +12,7 @@
         }
         :root { --accent: #ff85a2; --bg: #050505; }
         body { background-color: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        
-        /* 2. Hidden preloader to "prime" the font engine */
         #font-prime { font-family: 'LyricFont'; position: absolute; opacity: 0; pointer-events: none; top: -100px; }
-
         #preview-container { width: 800px; box-shadow: 0 25px 70px rgba(0,0,0,0.9); margin-bottom: 20px; border-radius: 15px; overflow: hidden; border: 2px solid #222; background: #111; }
         canvas { display: block; width: 100%; height: auto; background: #000; }
         #player-bar { width: 100%; background: #111; padding: 5px; border-top: 1px solid #333; box-sizing: border-box; }
@@ -43,7 +39,6 @@
 </head>
 <body>
 
-    <!-- This div makes sure the font is loaded as soon as the HTML renders -->
     <div id="font-prime">PRELOAD</div>
 
     <div id="preview-container">
@@ -98,8 +93,6 @@
         function render() {
             const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeSec = curTime + parseFloat(offsetSlider.value), adjustedTimeMs = adjustedTimeSec * 1000;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Force Font selection every frame to prevent fallback
             ctx.font = `10px "${customFontName}"`; 
 
             let wipeProgress = 0; if (elapsed > WIPE_START) wipeProgress = easeInOutSine(Math.min(1, (elapsed - WIPE_START) / WIPE_DUR));
@@ -115,8 +108,8 @@
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 const wipeFinishedMs = WIPE_START + WIPE_DUR;
 
-                // SNAPPY INTRO (Title/Artist)
-                if (elapsed > wipeFinishedMs && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - wipeFinishedMs > 1000)) {
+                // SPACE-CHECK LOGIC: Only show Title/Artist if there's > 2s gap
+                if (elapsed > wipeFinishedMs && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - wipeFinishedMs > 2000)) {
                     let introOp = 0;
                     const introDisplayStart = wipeFinishedMs + 200;
                     const introDisplayFadeOut = firstLyricTimeMs - 300;
@@ -131,13 +124,11 @@
                     ctx.restore();
                 }
 
-                // SNAPPY LYRIC FADING
                 if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
                     if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } } else if (textOpacity < 1) { textOpacity += 0.25; }
                     if (displayedText) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity)); ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.9, 115)}px "${customFontName}"`; ctx.fillText(displayedText.toUpperCase(), canvas.width/2, canvas.height/2); ctx.restore(); }
                 }
 
-                // COUNTER-CLOCKWISE LOGO SPIN
                 const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
                 if (logoWipeAlpha > 0) {
                     ctx.save(); 
@@ -158,7 +149,6 @@
                 }
             }
 
-            // WHITE BG & MASKED SHAPES
             if (wipeProgress < 1) {
                 ctx.save(); 
                 const totalTravel = canvas.width * 4.8; 
@@ -192,7 +182,6 @@
                 ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10); 
                 ctx.restore();
 
-                // INITIAL CENTER LOGO
                 if (elapsed < OUTRO_START + LOGO_OUTRO) {
                     let op = 0, sc = 1.0; 
                     if (elapsed < INTRO_DUR) { let t = easeOutCubic(elapsed/INTRO_DUR); op = t; sc = 0.5 + 0.45 * t; } 
@@ -205,7 +194,6 @@
             requestAnimationFrame(render);
         }
 
-        // PRE-INIT RENDER LOOP
         document.fonts.ready.then(() => { render(); });
 
         bgUpload.onchange = (e) => { const f = e.target.files[0]; if (f) { const rd = new FileReader(); rd.onload = (ev) => bgImg.src = ev.target.result; rd.readAsDataURL(f); } };
