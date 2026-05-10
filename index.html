@@ -58,12 +58,11 @@
         const canvas = document.getElementById('previewCanvas'), ctx = canvas.getContext('2d'), audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
         const logo = new Image(); logo.src = 'ic.png';
         
-        // TIMING CONSTANTS
-        const INTRO_DUR = 800, STAY_DUR = 1800; // Shortened stay
+        const INTRO_DUR = 800, STAY_DUR = 1800; 
         const OUTRO_START = INTRO_DUR + STAY_DUR;
         const WIPE_DELAY = 600;
         const WIPE_START = OUTRO_START - WIPE_DELAY;
-        const LOGO_OUTRO = 350; // Faster logo fade out
+        const LOGO_OUTRO = 350; 
         const WIPE_DUR = 1400;
 
         const memphisShapes = [];
@@ -118,10 +117,17 @@
                 if (logoWipeAlpha > 0) {
                     ctx.save(); 
                     const logoSize = 85, margin = 20; 
-                    // INTERVAL SPIN: Rotates every 5 seconds
-                    const cycleTime = elapsed % 5000;
+                    
+                    // IMPROVED SPIN: Every 5s, it spins 360 degrees quickly (within 1.5s)
+                    const interval = 5000;
+                    const spinDuration = 1500; 
+                    const cycleTime = elapsed % interval;
                     let rotation = 0;
-                    if (cycleTime < 1000) rotation = (cycleTime / 1000) * (Math.PI * 2);
+                    if (cycleTime < spinDuration) {
+                        // Fast ease-in-out rotation for more "length" and impact
+                        let t = cycleTime / spinDuration;
+                        rotation = (easeInOutSine(t)) * (Math.PI * 2);
+                    }
                     
                     ctx.translate(canvas.width - logoSize/2 - margin, canvas.height - logoSize/2 - margin); 
                     ctx.rotate(rotation); 
@@ -136,12 +142,10 @@
                 ctx.save(); const totalTravel = canvas.width * 4.8; ctx.translate(-totalTravel * wipeProgress, 0); ctx.rotate(-15 * Math.PI / 180); ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10);
                 memphisShapes.forEach(s => { ctx.save(); ctx.translate(s.x - canvas.width, s.y); ctx.rotate(s.rotation); ctx.beginPath(); ctx.strokeStyle = '#000'; ctx.lineWidth = 4; if(s.type === 0){ const hs=s.size/2; ctx.moveTo(-hs,-hs); ctx.lineTo(hs,hs); ctx.moveTo(hs,-hs); ctx.lineTo(-hs,hs); ctx.stroke(); } else if(s.type === 1){ ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.stroke(); } else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); } ctx.restore(); s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed; });
                 
-                // The Black Divider
                 ctx.fillStyle = '#000000'; 
                 ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10); 
                 ctx.restore();
 
-                // Centered Logo Intro/Outro
                 if (elapsed < OUTRO_START + LOGO_OUTRO) {
                     let op = 0, sc = 1.0; 
                     if (elapsed < INTRO_DUR) { 
@@ -149,7 +153,6 @@
                     } else if (elapsed < OUTRO_START) { 
                         op = 1; sc = 0.95 + (0.07 * ((elapsed - INTRO_DUR)/STAY_DUR)); 
                     } else { 
-                        // Fades out faster before wipe hits middle
                         let t = (elapsed - OUTRO_START)/LOGO_OUTRO; 
                         op = Math.max(0, 1-t); sc = 1.02 + (0.02*t); 
                     }
@@ -167,7 +170,7 @@
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim(); if(!t) return alert("Song Title is required");
-            statusMsg.innerText = "Searching...";
+            statusMsg.innerText = "Syncing...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`); const d = await r.json(); lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
@@ -180,7 +183,7 @@
         };
 
         audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
-        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Exported."; } };
+        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Done."; } };
 
         recordBtn.onclick = async () => {
             if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } else {
