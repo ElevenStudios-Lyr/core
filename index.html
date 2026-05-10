@@ -76,6 +76,7 @@
 
         let syncedLyrics = [], currentLineIndex = -1, displayedText = "", targetText = "", textOpacity = 0, isFading = false, customFontName = 'LyricFont', bgImg = new Image();
         bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
+        let isCountingDown = false, countdownVal = 0;
 
         offsetSlider.oninput = () => { offsetDisplay.innerText = `${parseFloat(offsetSlider.value).toFixed(1)}s`; };
 
@@ -91,8 +92,19 @@
         }
 
         function render() {
-            const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeSec = curTime + parseFloat(offsetSlider.value), adjustedTimeMs = adjustedTimeSec * 1000;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (isCountingDown) {
+                ctx.fillStyle = "white";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.font = "bold 200px sans-serif";
+                ctx.fillText(countdownVal, canvas.width/2, canvas.height/2);
+                requestAnimationFrame(render);
+                return;
+            }
+
+            const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeSec = curTime + parseFloat(offsetSlider.value), adjustedTimeMs = adjustedTimeSec * 1000;
             ctx.font = `10px "${customFontName}"`; 
 
             let wipeProgress = 0; if (elapsed > WIPE_START) wipeProgress = easeInOutSine(Math.min(1, (elapsed - WIPE_START) / WIPE_DUR));
@@ -187,12 +199,11 @@
         audioPlayer.onplay = resetLyricState;
         audioPlayer.onseeked = resetLyricState;
 
-        // AUTO-STOP RECORDING WHEN AUDIO ENDS
         audioPlayer.onended = () => {
             if (window.mediaRecorder?.state === "recording") {
                 window.mediaRecorder.stop();
                 recordBtn.classList.remove('recording');
-                statusMsg.innerText = "Audio Finished. Saving...";
+                statusMsg.innerText = "Done.";
             }
         };
 
@@ -216,37 +227,50 @@
             if (window.mediaRecorder?.state === "recording") {
                 window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Exporting...";
             } else {
-                const chunks = []; audioPlayer.currentTime = 0; resetLyricState();
-                const stream = canvas.captureStream(60);
-                const ac = new (window.AudioContext || window.webkitAudioContext)();
-                if (ac.state === 'suspended') await ac.resume();
-                const dest = ac.createMediaStreamDestination();
-                const source = ac.createMediaElementSource(audioPlayer);
-                source.connect(dest); source.connect(ac.destination);
-                const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+                if (isCountingDown) return;
                 
-                try {
-                    window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: 15000000 });
-                } catch (e) {
-                    try {
-                        window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4', videoBitsPerSecond: 12000000 });
-                    } catch (e2) {
-                        window.mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: 10000000 });
-                    }
-                }
+                statusMsg.innerText = "Preparing...";
+                countdownVal = 5;
+                isCountingDown = true;
 
-                window.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-                window.mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/mp4' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url;
-                    a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.mp4`;
-                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-                    statusMsg.innerText = "Video Saved.";
-                };
-                window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording'); statusMsg.innerText = "Recording...";
+                const timer = setInterval(() => {
+                    countdownVal--;
+                    if (countdownVal <= 0) {
+                        clearInterval(timer);
+                        isCountingDown = false;
+                        startRecording();
+                    }
+                }, 1000);
             }
         };
+
+        async function startRecording() {
+            const chunks = []; audioPlayer.currentTime = 0; resetLyricState();
+            const stream = canvas.captureStream(60);
+            const ac = new (window.AudioContext || window.webkitAudioContext)();
+            if (ac.state === 'suspended') await ac.resume();
+            const dest = ac.createMediaStreamDestination();
+            const source = ac.createMediaElementSource(audioPlayer);
+            source.connect(dest); source.connect(ac.destination);
+            const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+            
+            try {
+                window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: 15000000 });
+            } catch (e) {
+                window.mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: 12000000 });
+            }
+
+            window.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+            window.mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/mp4' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a'); a.href = url;
+                a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.mp4`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                statusMsg.innerText = "Saved.";
+            };
+            window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording'); statusMsg.innerText = "Recording...";
+        }
     </script>
 </body>
 </html>
