@@ -187,6 +187,15 @@
         audioPlayer.onplay = resetLyricState;
         audioPlayer.onseeked = resetLyricState;
 
+        // AUTO-STOP RECORDING WHEN AUDIO ENDS
+        audioPlayer.onended = () => {
+            if (window.mediaRecorder?.state === "recording") {
+                window.mediaRecorder.stop();
+                recordBtn.classList.remove('recording');
+                statusMsg.innerText = "Audio Finished. Saving...";
+            }
+        };
+
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim(); if(!t) return alert("Song Title is required");
             statusMsg.innerText = "Syncing...";
@@ -216,7 +225,6 @@
                 source.connect(dest); source.connect(ac.destination);
                 const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
                 
-                // FIXED: Exporting to MP4
                 try {
                     window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: 15000000 });
                 } catch (e) {
