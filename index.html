@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOFT Lyric Studio</title>
+    <title>Eleven Studios | Dashboard</title>
     <style>
         @font-face { font-family: 'LyricFont'; src: url('defaultfont.otf'); }
         :root { --accent: #ff85a2; --bg: #050505; }
@@ -51,7 +51,7 @@
         <div class="input-row"><span class="label">Lyric Offset</span><input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0"><span id="offsetVal">0.0s</span></div>
         <div class="input-row"><button id="confirmBtn">Sync & Search</button><button id="recordBtn">Start Export</button></div>
         <div id="lyrics-results"></div>
-        <div class="status" id="statusMsg">Font: Default (defaultfont.otf)</div>
+        <div class="status" id="statusMsg">Eleven Studios | Dashboard</div>
     </div>
 
     <script>
@@ -88,11 +88,12 @@
                 ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white"; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 25;
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
-                
-                // BUG FIX: Only show intro text if there is actually time for it before lyrics
-                if (elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - OUTRO_START > 1000)) {
-                    let introOp = 1; const fadeStart = firstLyricTimeMs - 250;
-                    if (adjustedTimeMs > fadeStart) introOp = 1 - ((adjustedTimeMs - fadeStart) / 250);
+                const wipeFinishedMs = WIPE_START + WIPE_DUR;
+
+                // STRICTOR CHECK: Only show intro text if there's at least 1.5s of space after the wipe finishes and before the first lyric starts
+                if (elapsed > wipeFinishedMs && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - wipeFinishedMs > 1500)) {
+                    let introOp = 1; const fadeStart = firstLyricTimeMs - 300;
+                    if (adjustedTimeMs > fadeStart) introOp = 1 - ((adjustedTimeMs - fadeStart) / 300);
                     ctx.save(); ctx.globalAlpha = Math.max(0, introOp);
                     ctx.font = `bold 125px "${customFontName}"`; ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 20);
                     ctx.font = `52px "${customFontName}"`; ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 70);
@@ -131,7 +132,7 @@
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim(); if(!t) return alert("Song Title is required");
-            statusMsg.innerText = "Searching...";
+            statusMsg.innerText = "Syncing...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`); const d = await r.json(); lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
@@ -139,19 +140,19 @@
                     card.onclick = () => { syncedLyrics = item.syncedLyrics.split('\n').map(line => { const m = line.match(/\[(\d+):(\d+\.\d+)\]/); return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null; }).filter(x => x && x.text !== ""); document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active')); card.classList.add('active'); currentLineIndex = -1; displayedText = ""; targetText = ""; };
                     lyricsResults.appendChild(card); if (i === 0) card.click();
                 });
-                statusMsg.innerText = d.length ? "Lyrics synced." : "None found.";
-            } catch (e) { statusMsg.innerText = "Error searching."; }
+                statusMsg.innerText = d.length ? "Ready." : "No lyrics found.";
+            } catch (e) { statusMsg.innerText = "Error."; }
         };
 
         audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
-        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Recording finished & saved."; } };
+        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Finished."; } };
 
         recordBtn.onclick = async () => {
             if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } else {
                 const chunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1; const stream = canvas.captureStream(60); const ac = new AudioContext(); const dest = ac.createMediaStreamDestination(); ac.createMediaElementSource(audioPlayer).connect(dest); ac.createMediaElementSource(audioPlayer).connect(ac.destination);
                 window.mediaRecorder = new MediaRecorder(new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
                 window.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-                window.mediaRecorder.onstop = () => { const blob = new Blob(chunks, { type: 'video/mp4' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `LOFT_${document.getElementById('title').value || 'Studio'}.mp4`; a.click(); };
+                window.mediaRecorder.onstop = () => { const blob = new Blob(chunks, { type: 'video/mp4' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ElevenStudios_${document.getElementById('title').value || 'Export'}.mp4`; a.click(); };
                 window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
             }
         };
