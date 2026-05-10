@@ -70,6 +70,12 @@
 
         offsetSlider.oninput = () => { let val = parseFloat(offsetSlider.value); offsetDisplay.innerText = (val > 0 ? "+" : "") + val.toFixed(1) + "s"; };
 
+        function formatTime(secs) {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
         function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
         function easeInOutSine(x) { return -(Math.cos(Math.PI * x) - 1) / 2; }
         function getFitSize(text, maxW, baseSize) { let size = baseSize; ctx.font = `bold ${size}px "${customFontName}"`; while (ctx.measureText(text).width > maxW && size > 20) { size -= 2; ctx.font = `bold ${size}px "${customFontName}"`; } return size; }
@@ -90,7 +96,6 @@
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 const wipeFinishedMs = WIPE_START + WIPE_DUR;
 
-                // STRICTOR CHECK: Only show intro text if there's at least 1.5s of space after the wipe finishes and before the first lyric starts
                 if (elapsed > wipeFinishedMs && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - wipeFinishedMs > 1500)) {
                     let introOp = 1; const fadeStart = firstLyricTimeMs - 300;
                     if (adjustedTimeMs > fadeStart) introOp = 1 - ((adjustedTimeMs - fadeStart) / 300);
@@ -107,8 +112,16 @@
 
                 const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
                 if (logoWipeAlpha > 0) {
-                    ctx.save(); const logoSize = 85, margin = 20; const cycleTime = elapsed % 6000; let rotation = 0; if (cycleTime < 2000) rotation = (cycleTime / 2000) * (Math.PI * 4);
-                    ctx.translate(canvas.width - logoSize/2 - margin, canvas.height - logoSize/2 - margin); ctx.rotate(rotation); ctx.globalAlpha = logoWipeAlpha * 0.9; ctx.filter = 'brightness(100)'; if (logo.complete) ctx.drawImage(logo, -logoSize/2, -logoSize/2, logoSize, logoSize); ctx.restore();
+                    ctx.save(); 
+                    const logoSize = 85, margin = 20; 
+                    // OLD SPIN ANIMATION: Continuous rotation based on time
+                    const rotation = (elapsed / 2000) * Math.PI; 
+                    ctx.translate(canvas.width - logoSize/2 - margin, canvas.height - logoSize/2 - margin); 
+                    ctx.rotate(rotation); 
+                    ctx.globalAlpha = logoWipeAlpha * 0.9; 
+                    ctx.filter = 'brightness(100)'; 
+                    if (logo.complete) ctx.drawImage(logo, -logoSize/2, -logoSize/2, logoSize, logoSize); 
+                    ctx.restore();
                 }
             }
 
@@ -132,27 +145,27 @@
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim(); if(!t) return alert("Song Title is required");
-            statusMsg.innerText = "Syncing...";
+            statusMsg.innerText = "Searching...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`); const d = await r.json(); lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
-                    const card = document.createElement('div'); card.className = 'lyric-card'; card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div><span class="lyric-duration">${item.duration}s</span>`;
+                    const card = document.createElement('div'); card.className = 'lyric-card'; card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div><span class="lyric-duration">${formatTime(item.duration)}</span>`;
                     card.onclick = () => { syncedLyrics = item.syncedLyrics.split('\n').map(line => { const m = line.match(/\[(\d+):(\d+\.\d+)\]/); return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null; }).filter(x => x && x.text !== ""); document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active')); card.classList.add('active'); currentLineIndex = -1; displayedText = ""; targetText = ""; };
                     lyricsResults.appendChild(card); if (i === 0) card.click();
                 });
-                statusMsg.innerText = d.length ? "Ready." : "No lyrics found.";
+                statusMsg.innerText = d.length ? "Ready." : "Not found.";
             } catch (e) { statusMsg.innerText = "Error."; }
         };
 
         audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
-        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Finished."; } };
+        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Exported."; } };
 
         recordBtn.onclick = async () => {
             if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } else {
                 const chunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1; const stream = canvas.captureStream(60); const ac = new AudioContext(); const dest = ac.createMediaStreamDestination(); ac.createMediaElementSource(audioPlayer).connect(dest); ac.createMediaElementSource(audioPlayer).connect(ac.destination);
                 window.mediaRecorder = new MediaRecorder(new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
                 window.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-                window.mediaRecorder.onstop = () => { const blob = new Blob(chunks, { type: 'video/mp4' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ElevenStudios_${document.getElementById('title').value || 'Export'}.mp4`; a.click(); };
+                window.mediaRecorder.onstop = () => { const blob = new Blob(chunks, { type: 'video/mp4' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.mp4`; a.click(); };
                 window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
             }
         };
