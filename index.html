@@ -221,7 +221,7 @@
             } catch (e) { statusMsg.innerText = "Error."; }
         };
 
-        // THUMBNAIL GENERATOR
+        // THUMBNAIL GENERATOR - Updated Text Sizes
         thumbBtn.onclick = () => {
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = 1280; tempCanvas.height = 720;
@@ -237,17 +237,19 @@
 
             // Draw Text
             tCtx.textAlign = "center"; tCtx.textBaseline = "middle"; tCtx.fillStyle = "white";
-            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 30;
+            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 35; // Increased blur slightly for bigger text
             
             const songTitle = document.getElementById('title').value.toUpperCase() || "SONG TITLE";
             const artistName = document.getElementById('artist').value.toUpperCase() || "ARTIST NAME";
 
-            tCtx.font = `bold 140px "${customFontName}"`;
-            tCtx.fillText(songTitle, 640, 340);
+            // Title - Increased from 140px to 180px
+            tCtx.font = `bold 180px "${customFontName}"`;
+            tCtx.fillText(songTitle, 640, 330); // Adjusted Y to 330
             
-            tCtx.font = `60px "${customFontName}"`;
+            // Artist - Increased from 60px to 80px
+            tCtx.font = `80px "${customFontName}"`; 
             tCtx.fillStyle = "rgba(255,255,255,0.85)";
-            tCtx.fillText(artistName, 640, 440);
+            tCtx.fillText(artistName, 640, 450); // Adjusted Y to 450
 
             // Auto Download
             const link = document.createElement('a');
