@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOFT Lyric Studio</title>
+    <title>LOFT Lyric Studio - Sync Fix</title>
     <style>
-        /* Loading your local font */
         @font-face {
             font-family: 'DefaultLOFT';
             src: url('defaultfont.otf');
@@ -23,7 +22,6 @@
             margin: 0; 
         }
         
-        /* Preview Canvas Styling */
         #canvas-wrapper { 
             position: relative; 
             box-shadow: 0 25px 70px rgba(0,0,0,0.9); 
@@ -36,7 +34,6 @@
         }
         canvas { display: block; width: 100%; height: auto; }
 
-        /* Dedicated Player Bar below preview */
         #player-bar {
             width: 800px;
             background: #111;
@@ -71,9 +68,6 @@
             background: #1a1a1a; border: 1px solid #444; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px; font-family: inherit;
         }
 
-        .checkbox-container { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #ccc; }
-        input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
-
         button { 
             padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.3s; font-family: inherit;
         }
@@ -100,16 +94,15 @@
         <canvas id="previewCanvas" width="1280" height="720"></canvas>
     </div>
 
-    <!-- Player moved outside/below the preview box -->
     <div id="player-bar">
         <audio id="audioPlayer" controls crossorigin="anonymous"></audio>
     </div>
 
     <div class="dashboard">
         <div class="input-row">
-            <span class="label">Custom Font</span>
+            <span class="label">Font Override</span>
             <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2">
-            <label class="checkbox-container">
+            <label style="display:flex; align-items:center; gap:5px; font-size:12px;">
                 <input type="checkbox" id="blurToggle"> Blur BG
             </label>
         </div>
@@ -134,7 +127,7 @@
         </div>
 
         <div id="lyrics-results"></div>
-        <div class="status" id="statusMsg">Font: Default (defaultfont.otf)</div>
+        <div class="status" id="statusMsg">Ready (defaultfont.otf)</div>
     </div>
 
     <script>
@@ -155,13 +148,14 @@
         const INTRO_DUR = 800, STAY_DUR = 2500, WIPE_DELAY = 600, OUTRO_START = INTRO_DUR + STAY_DUR;
         const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 1400;
 
+        // Create Shapes
         const memphisShapes = [];
-        for (let i = 0; i < 180; i++) {
+        for (let i = 0; i < 150; i++) {
             memphisShapes.push({
-                x: Math.random() * 4500, y: Math.random() * 1600 - 400,
-                size: Math.random() * 20 + 15, type: Math.floor(Math.random() * 6),
-                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
-                rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.04
+                x: Math.random() * 5000, y: Math.random() * 2000 - 500,
+                size: Math.random() * 20 + 15, type: Math.floor(Math.random() * 5),
+                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+                rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.03
             });
         }
 
@@ -186,19 +180,11 @@
 
         function resetPreviewState() { currentLineIndex = -1; displayedText = ""; targetText = ""; textOpacity = 0; isFading = false; }
 
-        function parseLRC(lrcContent, resultId) {
-            syncedLyrics = lrcContent.split('\n').map(line => {
-                const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
-                return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null;
-            }).filter(x => x && x.text !== "");
-            document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active'));
-            document.getElementById(`res-${resultId}`)?.classList.add('active');
-            resetPreviewState();
-        }
-
         function render() {
             const elapsed = audioPlayer.currentTime * 1000;
-            const adjustedTime = audioPlayer.currentTime + parseFloat(offsetSlider.value);
+            // FIXED: Apply offset to the global "adjusted time" so lyrics AND intro checks use it
+            const adjustedTimeSec = audioPlayer.currentTime + parseFloat(offsetSlider.value);
+            const adjustedTimeMs = adjustedTimeSec * 1000;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             let wipeProgress = 0;
@@ -220,7 +206,8 @@
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 const shouldShowIntro = firstLyricTimeMs > (OUTRO_START + LOGO_OUTRO + 500);
 
-                if (shouldShowIntro && elapsed > OUTRO_START && elapsed < firstLyricTimeMs - 500) {
+                // FIXED: Adjusted intro text triggers based on offset timing
+                if (shouldShowIntro && elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs - 500) {
                     const introOpacity = Math.min(1, (elapsed - OUTRO_START) / 800);
                     ctx.save(); ctx.globalAlpha = introOpacity;
                     ctx.font = `bold 80px "${customFontName}"`;
@@ -230,9 +217,9 @@
                     ctx.restore();
                 }
 
-                if (adjustedTime >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.3) {
-                    if (isFading) { textOpacity -= 0.3; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } }
-                    else if (textOpacity < 1) { textOpacity += 0.3; }
+                if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.3) {
+                    if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } }
+                    else if (textOpacity < 1) { textOpacity += 0.25; }
                     if (displayedText) {
                         ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity));
                         ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.92, 115)}px "${customFontName}"`;
@@ -257,15 +244,23 @@
                 ctx.save();
                 const totalTravel = canvas.width * 4.8;
                 ctx.translate(-totalTravel * wipeProgress, 0); ctx.rotate(-15 * Math.PI / 180);
-                ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 4.85, canvas.height * 10);
+                ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10);
                 ctx.lineWidth = 4; ctx.strokeStyle = '#000000'; ctx.fillStyle = '#000000';
+                
+                // FIXED: Screen-wrapping for shapes so they don't disappear
                 memphisShapes.forEach(s => {
                     ctx.save(); ctx.translate(s.x - canvas.width, s.y); ctx.rotate(s.rotation); ctx.beginPath();
                     if(s.type === 0){ const hs=s.size/2; ctx.moveTo(-hs,-hs); ctx.lineTo(hs,hs); ctx.moveTo(hs,-hs); ctx.lineTo(-hs,hs); ctx.stroke(); }
                     else if(s.type === 1){ ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.stroke(); }
-                    else { ctx.moveTo(0,-s.size/2); ctx.lineTo(s.size/2,s.size/2); ctx.lineTo(-s.size/2,s.size/2); ctx.closePath(); ctx.stroke(); }
-                    ctx.restore(); s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed;
+                    else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); }
+                    ctx.restore(); 
+                    
+                    s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed;
+                    // Wrap-around logic
+                    if (s.x > 5000) s.x = 0; if (s.x < 0) s.x = 5000;
+                    if (s.y > 1500) s.y = -500; if (s.y < -500) s.y = 1500;
                 });
+                
                 ctx.fillStyle = '#000000'; ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10);
                 ctx.restore();
 
@@ -280,54 +275,59 @@
                 }
             }
 
-            if (audioPlayer.currentTime > audioPlayer.duration - 1.5) {
-                const fade = (audioPlayer.currentTime - (audioPlayer.duration - 1.5)) / 1.5;
-                ctx.fillStyle = `rgba(0, 0, 0, ${Math.min(1, fade)})`;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
             requestAnimationFrame(render);
         }
         render();
 
-        bgUpload.onchange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (event) => bgImg.src = event.target.result; reader.readAsDataURL(file); } };
-        fontUpload.onchange = async (e) => { const file = e.target.files[0]; if (file) { const fontFace = new FontFace('UserCustomFont', await file.arrayBuffer()); await fontFace.load(); document.fonts.add(fontFace); customFontName = 'UserCustomFont'; } };
-        audioUpload.onchange = (e) => { const file = e.target.files[0]; if (file) audioPlayer.src = URL.createObjectURL(file); };
+        bgUpload.onchange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (ev) => bgImg.src = ev.target.result; reader.readAsDataURL(file); } };
+        fontUpload.onchange = async (e) => { const file = e.target.files[0]; if (file) { const fb = await file.arrayBuffer(); const font = new FontFace('UserCustomFont', fb); await font.load(); document.fonts.add(font); customFontName = 'UserCustomFont'; } };
+        document.getElementById('audioUpload').onchange = (e) => { const file = e.target.files[0]; if (file) audioPlayer.src = URL.createObjectURL(file); };
 
         document.getElementById('confirmBtn').onclick = async () => {
-            const artist = document.getElementById('artist').value.trim(), title = document.getElementById('title').value.trim();
-            if(!title) return alert("Title required");
+            const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim();
+            if(!t) return alert("Title missing");
             statusMsg.innerText = "Searching...";
             try {
-                const res = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}`);
-                const data = await res.json();
+                const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`);
+                const d = await r.json();
                 lyricsResults.innerHTML = "";
-                data.filter(d => d.syncedLyrics).forEach((item, idx) => {
+                d.filter(x => x.syncedLyrics).forEach((item, i) => {
                     const card = document.createElement('div'); card.className = 'lyric-card'; card.id = `res-${item.id}`;
                     card.innerHTML = `<strong>${item.trackName}</strong><br><small>${item.artistName}</small>`;
                     card.onclick = () => parseLRC(item.syncedLyrics, item.id);
-                    lyricsResults.appendChild(card); if (idx === 0) parseLRC(item.syncedLyrics, item.id);
+                    lyricsResults.appendChild(card); if (i === 0) parseLRC(item.syncedLyrics, item.id);
                 });
-            } catch (e) { statusMsg.innerText = "Search failed."; }
+            } catch (e) { statusMsg.innerText = "Error."; }
         };
+
+        function parseLRC(lrc, id) {
+            syncedLyrics = lrc.split('\n').map(line => {
+                const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
+                return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null;
+            }).filter(x => x && x.text !== "");
+            document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`res-${id}`)?.classList.add('active');
+            resetPreviewState();
+        }
 
         audioPlayer.ontimeupdate = () => {
             const now = audioPlayer.currentTime + parseFloat(offsetSlider.value);
-            let foundIndex = -1;
-            for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) foundIndex = i; else break; }
-            if (foundIndex !== -1 && foundIndex !== currentLineIndex) { currentLineIndex = foundIndex; targetText = syncedLyrics[foundIndex].text; isFading = true; }
+            let idx = -1;
+            for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; }
+            if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; }
         };
 
         let mediaRecorder, recordedChunks = [];
         recordBtn.onclick = async () => {
-            if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); audioPlayer.pause(); } 
+            if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
             else {
                 recordedChunks = []; resetPreviewState(); audioPlayer.currentTime = 0;
                 const canvasStream = canvas.captureStream(60); 
                 const audioContext = new AudioContext();
-                const destination = audioContext.createMediaStreamDestination();
-                audioContext.createMediaElementSource(audioPlayer).connect(destination);
+                const dest = audioContext.createMediaStreamDestination();
+                audioContext.createMediaElementSource(audioPlayer).connect(dest);
                 audioContext.createMediaElementSource(audioPlayer).connect(audioContext.destination);
-                mediaRecorder = new MediaRecorder(new MediaStream([...canvasStream.getVideoTracks(), ...destination.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 12000000 });
+                mediaRecorder = new MediaRecorder(new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 12000000 });
                 mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
                 mediaRecorder.onstop = () => {
                     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks, { type: 'video/mp4' }));
