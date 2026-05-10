@@ -3,18 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LOFT Lyric Studio - Sync Fix</title>
+    <title>LOFT Lyric Studio</title>
     <style>
+        /* Only for Canvas Rendering */
         @font-face {
-            font-family: 'DefaultLOFT';
+            font-family: 'LyricFont';
             src: url('defaultfont.otf');
         }
 
-        :root { --accent: #ff85a2; --bg: #050505; }
+        :root { --accent: #ff85a2; --bg: #0b0b0b; }
+        
+        /* Dashboard uses system fonts, not the custom one */
         body { 
             background-color: var(--bg); 
             color: white; 
-            font-family: 'DefaultLOFT', 'Segoe UI', sans-serif; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -50,7 +53,7 @@
         }
 
         .dashboard { 
-            background: #111; 
+            background: #161616; 
             padding: 25px; 
             border-radius: 20px; 
             width: 800px; 
@@ -58,18 +61,18 @@
             flex-direction: column; 
             gap: 15px; 
             box-sizing: border-box; 
-            border: 1px solid #333; 
+            border: 1px solid #222; 
         }
 
         .input-row { display: flex; gap: 12px; align-items: center; }
-        .label { font-size: 11px; color: #777; min-width: 90px; text-transform: uppercase; letter-spacing: 1px; }
+        .label { font-size: 11px; color: #777; min-width: 90px; text-transform: uppercase; font-weight: bold; }
 
         input[type="text"], input[type="file"] { 
-            background: #1a1a1a; border: 1px solid #444; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px; font-family: inherit;
+            background: #222; border: 1px solid #333; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px;
         }
 
         button { 
-            padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.3s; font-family: inherit;
+            padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.2s;
         }
         #confirmBtn { background: var(--accent); }
         #recordBtn { background: #e74c3c; color: white; }
@@ -78,13 +81,18 @@
         @keyframes pulse { 50% { opacity: 0.5; } }
 
         #lyrics-results { 
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 160px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px;
         }
-        .lyric-card { background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #222; cursor: pointer; font-size: 13px; }
-        .lyric-card.active { border-color: var(--accent); background: #1f1417; }
+        .lyric-card { 
+            background: #1d1d1d; padding: 12px; border-radius: 8px; border: 1px solid #222; cursor: pointer; font-size: 13px; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .lyric-card:hover { border-color: #444; }
+        .lyric-card.active { border-color: var(--accent); background: #25181b; }
+        .lyric-duration { color: var(--accent); font-family: monospace; font-size: 11px; }
         
-        .status { font-size: 12px; color: #555; text-align: center; margin-top: 5px; }
-        input[type="range"] { flex: 2; accent-color: var(--accent); cursor: pointer; }
+        .status { font-size: 12px; color: #555; text-align: center; }
+        input[type="range"] { flex: 2; accent-color: var(--accent); }
         #offsetVal { min-width: 45px; font-size: 13px; font-family: monospace; color: var(--accent); }
     </style>
 </head>
@@ -100,15 +108,17 @@
 
     <div class="dashboard">
         <div class="input-row">
-            <span class="label">Font Override</span>
-            <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2">
-            <label style="display:flex; align-items:center; gap:5px; font-size:12px;">
+            <span class="label">Style</span>
+            <input type="file" id="fontUpload" accept=".ttf,.otf,.woff">
+            <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
                 <input type="checkbox" id="blurToggle"> Blur BG
             </label>
         </div>
         
-        <div class="input-row"><span class="label">Background</span><input type="file" id="bgUpload" accept="image/*"></div>
-        <div class="input-row"><span class="label">Audio File</span><input type="file" id="audioUpload" accept="audio/*"></div>
+        <div class="input-row"><span class="label">Media</span>
+            <input type="file" id="bgUpload" accept="image/*" title="Background">
+            <input type="file" id="audioUpload" accept="audio/*" title="Audio">
+        </div>
 
         <div class="input-row">
             <input type="text" id="artist" placeholder="Artist Name">
@@ -116,18 +126,18 @@
         </div>
 
         <div class="input-row">
-            <span class="label">Lyric Offset</span>
+            <span class="label">Sync Offset</span>
             <input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0">
             <span id="offsetVal">0.0s</span>
         </div>
         
         <div class="input-row">
-            <button id="confirmBtn">Sync & Search</button>
-            <button id="recordBtn">Start Export</button>
+            <button id="confirmBtn">Find Lyrics</button>
+            <button id="recordBtn">Export MP4</button>
         </div>
 
         <div id="lyrics-results"></div>
-        <div class="status" id="statusMsg">Ready (defaultfont.otf)</div>
+        <div class="status" id="statusMsg">Lyrics font: defaultfont.otf</div>
     </div>
 
     <script>
@@ -148,25 +158,30 @@
         const INTRO_DUR = 800, STAY_DUR = 2500, WIPE_DELAY = 600, OUTRO_START = INTRO_DUR + STAY_DUR;
         const WIPE_START = OUTRO_START - WIPE_DELAY, LOGO_OUTRO = 700, WIPE_DUR = 1400;
 
-        // Create Shapes
         const memphisShapes = [];
         for (let i = 0; i < 150; i++) {
             memphisShapes.push({
                 x: Math.random() * 5000, y: Math.random() * 2000 - 500,
                 size: Math.random() * 20 + 15, type: Math.floor(Math.random() * 5),
-                vx: (Math.random() - 0.5) * 1.5, vy: (Math.random() - 0.5) * 1.5,
+                vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2,
                 rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.03
             });
         }
 
         let syncedLyrics = [], currentLineIndex = -1, displayedText = "", targetText = "", textOpacity = 0, isFading = false;
-        let customFontName = 'DefaultLOFT', bgImg = new Image();
+        let customFontName = 'LyricFont', bgImg = new Image();
         bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
 
         offsetSlider.oninput = () => {
             let val = parseFloat(offsetSlider.value);
             offsetDisplay.innerText = (val > 0 ? "+" : "") + val.toFixed(1) + "s";
         };
+
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
 
         function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
         function easeInOutSine(x) { return -(Math.cos(Math.PI * x) - 1) / 2; }
@@ -178,11 +193,8 @@
             return size;
         }
 
-        function resetPreviewState() { currentLineIndex = -1; displayedText = ""; targetText = ""; textOpacity = 0; isFading = false; }
-
         function render() {
             const elapsed = audioPlayer.currentTime * 1000;
-            // FIXED: Apply offset to the global "adjusted time" so lyrics AND intro checks use it
             const adjustedTimeSec = audioPlayer.currentTime + parseFloat(offsetSlider.value);
             const adjustedTimeMs = adjustedTimeSec * 1000;
 
@@ -192,7 +204,7 @@
 
             if (wipeProgress > 0) {
                 ctx.save();
-                if (blurToggle.checked) ctx.filter = 'blur(8px)';
+                if (blurToggle.checked) ctx.filter = 'blur(10px)';
                 const canvasAspect = canvas.width / canvas.height, imgAspect = bgImg.width / bgImg.height;
                 let dW, dH;
                 if (imgAspect > canvasAspect) { dH = canvas.height; dW = dH * imgAspect; }
@@ -201,28 +213,27 @@
                 ctx.restore();
                 
                 ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white";
-                ctx.shadowColor = "rgba(0,0,0,0.7)"; ctx.shadowBlur = 20;
+                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 25;
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
-                const shouldShowIntro = firstLyricTimeMs > (OUTRO_START + LOGO_OUTRO + 500);
+                const shouldShowIntro = firstLyricTimeMs > (OUTRO_START + LOGO_OUTRO + 200);
 
-                // FIXED: Adjusted intro text triggers based on offset timing
-                if (shouldShowIntro && elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs - 500) {
+                if (shouldShowIntro && elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs - 300) {
                     const introOpacity = Math.min(1, (elapsed - OUTRO_START) / 800);
                     ctx.save(); ctx.globalAlpha = introOpacity;
-                    ctx.font = `bold 80px "${customFontName}"`;
-                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "SONG TITLE", canvas.width/2, canvas.height/2 - 20);
-                    ctx.font = `30px "${customFontName}"`; ctx.fillStyle = "rgba(255,255,255,0.7)";
-                    ctx.fillText(document.getElementById('artist').value.toUpperCase() || "ARTIST NAME", canvas.width/2, canvas.height/2 + 60);
+                    ctx.font = `bold 85px "${customFontName}"`;
+                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 25);
+                    ctx.font = `32px "${customFontName}"`; ctx.fillStyle = "rgba(255,255,255,0.75)";
+                    ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 65);
                     ctx.restore();
                 }
 
-                if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.3) {
+                if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
                     if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } }
                     else if (textOpacity < 1) { textOpacity += 0.25; }
                     if (displayedText) {
                         ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity));
-                        ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.92, 115)}px "${customFontName}"`;
+                        ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.9, 115)}px "${customFontName}"`;
                         ctx.fillText(displayedText.toUpperCase(), canvas.width/2, canvas.height/2);
                         ctx.restore();
                     }
@@ -230,11 +241,11 @@
 
                 const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
                 if (logoWipeAlpha > 0) {
-                    ctx.save(); const logoSize = 80, margin = 15;
-                    const cycleTime = elapsed % 5000;
-                    let rotation = 0; if (cycleTime < 1500) rotation = easeInOutQuart(cycleTime / 1500) * (Math.PI * 6);
+                    ctx.save(); const logoSize = 85, margin = 20;
+                    const cycleTime = elapsed % 6000;
+                    let rotation = 0; if (cycleTime < 2000) rotation = easeInOutQuart(cycleTime / 2000) * (Math.PI * 4);
                     ctx.translate(canvas.width - logoSize/2 - margin, canvas.height - logoSize/2 - margin);
-                    ctx.rotate(rotation); ctx.globalAlpha = 0.9; ctx.filter = 'brightness(100)'; 
+                    ctx.rotate(rotation); ctx.globalAlpha = logoWipeAlpha * 0.9; ctx.filter = 'brightness(100)'; 
                     if (logo.complete) ctx.drawImage(logo, -logoSize/2, -logoSize/2, logoSize, logoSize);
                     ctx.restore();
                 }
@@ -245,18 +256,15 @@
                 const totalTravel = canvas.width * 4.8;
                 ctx.translate(-totalTravel * wipeProgress, 0); ctx.rotate(-15 * Math.PI / 180);
                 ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10);
-                ctx.lineWidth = 4; ctx.strokeStyle = '#000000'; ctx.fillStyle = '#000000';
+                ctx.lineWidth = 4; ctx.strokeStyle = '#000'; 
                 
-                // FIXED: Screen-wrapping for shapes so they don't disappear
                 memphisShapes.forEach(s => {
                     ctx.save(); ctx.translate(s.x - canvas.width, s.y); ctx.rotate(s.rotation); ctx.beginPath();
                     if(s.type === 0){ const hs=s.size/2; ctx.moveTo(-hs,-hs); ctx.lineTo(hs,hs); ctx.moveTo(hs,-hs); ctx.lineTo(-hs,hs); ctx.stroke(); }
                     else if(s.type === 1){ ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.stroke(); }
                     else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); }
                     ctx.restore(); 
-                    
                     s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed;
-                    // Wrap-around logic
                     if (s.x > 5000) s.x = 0; if (s.x < 0) s.x = 5000;
                     if (s.y > 1500) s.y = -500; if (s.y < -500) s.y = 1500;
                 });
@@ -269,8 +277,20 @@
                     if (elapsed < INTRO_DUR) { let t = easeOutCubic(elapsed/INTRO_DUR); op = t; sc = 0.5 + 0.45 * t; }
                     else if (elapsed < OUTRO_START) { op = 1; sc = 0.95 + (0.07 * ((elapsed - INTRO_DUR)/STAY_DUR)); }
                     else { let t = (elapsed - OUTRO_START)/LOGO_OUTRO; op = Math.max(0, 1-t); sc = 1.02 - (0.05*t); }
-                    ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.scale(sc, sc); ctx.globalAlpha = op;
-                    ctx.filter = 'brightness(0)'; if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320);
+                    
+                    ctx.save(); 
+                    ctx.translate(canvas.width/2, canvas.height/2); 
+                    ctx.scale(sc, sc); 
+                    ctx.globalAlpha = op;
+                    
+                    // FIXED: NO GLOW during start (brightness 0 only), GLOW enabled only during transition/outro
+                    if (elapsed > OUTRO_START) {
+                        ctx.shadowColor = "rgba(0,0,0,0.5)";
+                        ctx.shadowBlur = 30;
+                    }
+                    
+                    ctx.filter = 'brightness(0)'; 
+                    if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320);
                     ctx.restore();
                 }
             }
@@ -279,36 +299,37 @@
         }
         render();
 
-        bgUpload.onchange = (e) => { const file = e.target.files[0]; if (file) { const reader = new FileReader(); reader.onload = (ev) => bgImg.src = ev.target.result; reader.readAsDataURL(file); } };
-        fontUpload.onchange = async (e) => { const file = e.target.files[0]; if (file) { const fb = await file.arrayBuffer(); const font = new FontFace('UserCustomFont', fb); await font.load(); document.fonts.add(font); customFontName = 'UserCustomFont'; } };
-        document.getElementById('audioUpload').onchange = (e) => { const file = e.target.files[0]; if (file) audioPlayer.src = URL.createObjectURL(file); };
+        bgUpload.onchange = (e) => { const f = e.target.files[0]; if (f) { const rd = new FileReader(); rd.onload = (ev) => bgImg.src = ev.target.result; rd.readAsDataURL(f); } };
+        fontUpload.onchange = async (e) => { const f = e.target.files[0]; if (f) { const b = await f.arrayBuffer(); const ft = new FontFace('UserCustomFont', b); await ft.load(); document.fonts.add(ft); customFontName = 'UserCustomFont'; } };
+        document.getElementById('audioUpload').onchange = (e) => { const f = e.target.files[0]; if (f) audioPlayer.src = URL.createObjectURL(f); };
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim();
-            if(!t) return alert("Title missing");
-            statusMsg.innerText = "Searching...";
+            if(!t) return alert("Please enter a Song Title");
+            statusMsg.innerText = "Searching LRCLIB...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`);
                 const d = await r.json();
                 lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
                     const card = document.createElement('div'); card.className = 'lyric-card'; card.id = `res-${item.id}`;
-                    card.innerHTML = `<strong>${item.trackName}</strong><br><small>${item.artistName}</small>`;
-                    card.onclick = () => parseLRC(item.syncedLyrics, item.id);
-                    lyricsResults.appendChild(card); if (i === 0) parseLRC(item.syncedLyrics, item.id);
+                    // ADDED: Length/Duration display
+                    card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div>
+                                      <span class="lyric-duration">${formatTime(item.duration)}</span>`;
+                    card.onclick = () => {
+                        syncedLyrics = item.syncedLyrics.split('\n').map(line => {
+                            const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
+                            return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null;
+                        }).filter(x => x && x.text !== "");
+                        document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active'); currentLineIndex = -1; displayedText = ""; targetText = "";
+                    };
+                    lyricsResults.appendChild(card);
+                    if (i === 0) card.click();
                 });
-            } catch (e) { statusMsg.innerText = "Error."; }
+                statusMsg.innerText = d.length ? "Lyrics loaded." : "No lyrics found.";
+            } catch (e) { statusMsg.innerText = "Search error."; }
         };
-
-        function parseLRC(lrc, id) {
-            syncedLyrics = lrc.split('\n').map(line => {
-                const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
-                return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null;
-            }).filter(x => x && x.text !== "");
-            document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active'));
-            document.getElementById(`res-${id}`)?.classList.add('active');
-            resetPreviewState();
-        }
 
         audioPlayer.ontimeupdate = () => {
             const now = audioPlayer.currentTime + parseFloat(offsetSlider.value);
@@ -321,17 +342,17 @@
         recordBtn.onclick = async () => {
             if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
             else {
-                recordedChunks = []; resetPreviewState(); audioPlayer.currentTime = 0;
+                recordedChunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1;
                 const canvasStream = canvas.captureStream(60); 
                 const audioContext = new AudioContext();
                 const dest = audioContext.createMediaStreamDestination();
                 audioContext.createMediaElementSource(audioPlayer).connect(dest);
                 audioContext.createMediaElementSource(audioPlayer).connect(audioContext.destination);
-                mediaRecorder = new MediaRecorder(new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 12000000 });
+                mediaRecorder = new MediaRecorder(new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
                 mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
                 mediaRecorder.onstop = () => {
                     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks, { type: 'video/mp4' }));
-                    a.download = `${document.getElementById('title').value || 'loft'}.mp4`; a.click();
+                    a.download = `LOFT_${document.getElementById('title').value || 'Export'}.mp4`; a.click();
                 };
                 mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
             }
