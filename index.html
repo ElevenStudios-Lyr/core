@@ -26,6 +26,7 @@
         button { padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.3s; font-family: inherit; }
         #confirmBtn { background: var(--accent); }
         #recordBtn { background: #e74c3c; color: white; }
+        #thumbBtn { background: #555; color: white; }
         #recordBtn.recording { background: #fff; color: #e74c3c; animation: pulse 1s infinite; }
         @keyframes pulse { 50% { opacity: 0.5; } }
         #lyrics-results { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px; }
@@ -57,13 +58,17 @@
         <div class="input-row">
             <span class="label">Recording FPS</span>
             <input type="number" id="fpsInput" value="30" min="1" max="60" style="max-width: 80px;">
-            <span style="font-size: 11px; color: #555;">(Lower FPS = Smoother recording on slow PCs)</span>
+            <span style="font-size: 11px; color: #555;">(Lower FPS = Smoother recording)</span>
         </div>
         <div class="input-row"><span class="label">Background</span><input type="file" id="bgUpload" accept="image/*"></div>
         <div class="input-row"><span class="label">Audio File</span><input type="file" id="audioUpload" accept="audio/*"></div>
         <div class="input-row"><input type="text" id="artist" placeholder="Artist Name"><input type="text" id="title" placeholder="Song Title"></div>
         <div class="input-row"><span class="label">Lyric Offset</span><input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0"><span id="offsetVal">0.0s</span></div>
-        <div class="input-row"><button id="confirmBtn">Sync & Search</button><button id="recordBtn">Start Export</button></div>
+        <div class="input-row">
+            <button id="confirmBtn">Sync & Search</button>
+            <button id="thumbBtn">Generate Thumbnail</button>
+            <button id="recordBtn">Start Export</button>
+        </div>
         <div id="lyrics-results"></div>
         <div class="status" id="statusMsg">Eleven Studios | Dashboard</div>
     </div>
@@ -72,7 +77,7 @@
         const canvas = document.getElementById('previewCanvas');
         const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
         
-        const audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), simpleLogo = document.getElementById('simpleLogo'), hideShapes = document.getElementById('hideShapes'), fpsInput = document.getElementById('fpsInput'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
+        const audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), thumbBtn = document.getElementById('thumbBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), simpleLogo = document.getElementById('simpleLogo'), hideShapes = document.getElementById('hideShapes'), fpsInput = document.getElementById('fpsInput'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
         const logo = new Image(); logo.src = 'ic.png';
         
         const INTRO_DUR = 800, STAY_DUR = 1800, LOGO_OUTRO = 350;
@@ -216,6 +221,42 @@
             } catch (e) { statusMsg.innerText = "Error."; }
         };
 
+        // THUMBNAIL GENERATOR
+        thumbBtn.onclick = () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 1280; tempCanvas.height = 720;
+            const tCtx = tempCanvas.getContext('2d');
+            
+            // Draw BG
+            tCtx.save();
+            if (blurToggle.checked) tCtx.filter = 'blur(10px)';
+            const canvasAspect = 1280 / 720, imgAspect = bgImg.width / bgImg.height;
+            let dW, dH; if (imgAspect > canvasAspect) { dH = 720; dW = dH * imgAspect; } else { dW = 1280; dH = dW / imgAspect; }
+            tCtx.drawImage(bgImg, (1280 - dW) / 2, (720 - dH) / 2, dW, dH);
+            tCtx.restore();
+
+            // Draw Text
+            tCtx.textAlign = "center"; tCtx.textBaseline = "middle"; tCtx.fillStyle = "white";
+            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 30;
+            
+            const songTitle = document.getElementById('title').value.toUpperCase() || "SONG TITLE";
+            const artistName = document.getElementById('artist').value.toUpperCase() || "ARTIST NAME";
+
+            tCtx.font = `bold 140px "${customFontName}"`;
+            tCtx.fillText(songTitle, 640, 340);
+            
+            tCtx.font = `60px "${customFontName}"`;
+            tCtx.fillStyle = "rgba(255,255,255,0.85)";
+            tCtx.fillText(artistName, 640, 440);
+
+            // Auto Download
+            const link = document.createElement('a');
+            link.download = `ElevenStudios_Thumb_${songTitle}.png`;
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+            statusMsg.innerText = "Thumbnail Saved.";
+        };
+
         audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
 
         recordBtn.onclick = async () => {
@@ -249,8 +290,6 @@
             window.mediaRecorder.start();
             statusMsg.innerText = "Recording...";
             recordBtn.classList.add('recording');
-            
-            // Stability Buffer: Wait 0.5s for recorder to prime before starting playback
             setTimeout(() => { audioPlayer.play(); }, 500); 
         }
     </script>
