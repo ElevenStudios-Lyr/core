@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOFT Lyric Studio</title>
     <style>
-        /* Canvas Specific Font */
         @font-face {
             font-family: 'LyricFont';
             src: url('defaultfont.otf');
@@ -24,7 +23,6 @@
             margin: 0; 
         }
         
-        /* Unified Preview Wrapper */
         #preview-container {
             width: 800px;
             box-shadow: 0 25px 70px rgba(0,0,0,0.9); 
@@ -37,7 +35,6 @@
 
         canvas { display: block; width: 100%; height: auto; background: #000; }
 
-        /* Player Bar locked to bottom of preview */
         #player-bar {
             width: 100%;
             background: #111;
@@ -51,7 +48,6 @@
             filter: invert(100%) hue-rotate(180deg) brightness(1.5); 
         }
 
-        /* Dashboard Styling */
         .dashboard { 
             background: #111; 
             padding: 25px; 
@@ -95,7 +91,7 @@
         
         .status { font-size: 12px; color: #555; text-align: center; margin-top: 5px; }
         input[type="range"] { flex: 2; accent-color: var(--accent); cursor: pointer; }
-        #offsetVal { min-width: 45px; font-size: 13px; font-family: monospace; color: var(--accent); }
+        #offsetVal { min-width: 45px; font-size: 13px; font-family: monospace; color: var(--accent); text-align: right; }
     </style>
 </head>
 <body>
@@ -171,6 +167,12 @@
         let customFontName = 'LyricFont', bgImg = new Image();
         bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
 
+        // FIXED: Offset indicator logic
+        offsetSlider.oninput = () => {
+            let val = parseFloat(offsetSlider.value);
+            offsetDisplay.innerText = (val > 0 ? "+" : "") + val.toFixed(1) + "s";
+        };
+
         function formatTime(sec) {
             const m = Math.floor(sec / 60); const s = Math.floor(sec % 60);
             return `${m}:${s < 10 ? '0' : ''}${s}`;
@@ -210,20 +212,20 @@
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 
-                // --- INTRO TEXT WITH FADE OUT ---
+                // --- INTRO TEXT WITH FAST FADE ---
                 if (elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs) {
                     let introOp = 1;
-                    const fadeStart = firstLyricTimeMs - 800;
+                    const fadeStart = firstLyricTimeMs - 250; // Faster transition start
                     if (adjustedTimeMs > fadeStart) {
-                        introOp = 1 - ((adjustedTimeMs - fadeStart) / 800);
+                        introOp = 1 - ((adjustedTimeMs - fadeStart) / 250); // Matches lyric speed
                     }
                     
                     ctx.save(); ctx.globalAlpha = Math.max(0, introOp);
-                    ctx.font = `bold 105px "${customFontName}"`;
-                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 15);
-                    ctx.font = `42px "${customFontName}"`;
-                    ctx.fillStyle = "rgba(255,255,255,0.8)";
-                    ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 65);
+                    ctx.font = `bold 125px "${customFontName}"`; // Bigger Title
+                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 20);
+                    ctx.font = `52px "${customFontName}"`; // Bigger Artist
+                    ctx.fillStyle = "rgba(255,255,255,0.85)";
+                    ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 70);
                     ctx.restore();
                 }
 
@@ -239,7 +241,6 @@
                     }
                 }
 
-                // Watermark Logo
                 const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
                 if (logoWipeAlpha > 0) {
                     ctx.save(); const logoSize = 85, margin = 20;
@@ -252,7 +253,6 @@
                 }
             }
 
-            // --- INTRO LOGO ANIMATION ---
             if (wipeProgress < 1) {
                 ctx.save();
                 const totalTravel = canvas.width * 4.8;
