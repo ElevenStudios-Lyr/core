@@ -131,17 +131,17 @@
             const songTitle = document.getElementById('title').value.toUpperCase() || "SONG TITLE";
             const artistName = document.getElementById('artist').value.toUpperCase() || "ARTIST NAME";
 
-            // Closer positioning math:
-            const totalTextHeight = (titleFontSize * 0.8) + (artistFontSize * 0.8);
-            const titleY = 360 - (totalTextHeight / 4); 
+            // Ultra-close spacing math (0.2x)
+            const combinedHeight = (titleFontSize * 0.7) + (artistFontSize * 0.7);
+            const titleY = 360 - (combinedHeight / 4); 
             
             tCtx.font = `bold ${titleFontSize}px "${customFontName}"`;
             tCtx.fillText(songTitle, 640, titleY);
             
-            // Reduced the gap between lines (multiplier changed to 0.45 from 1.5)
             tCtx.font = `800 ${artistFontSize}px "${customFontName}"`;
             tCtx.fillStyle = "rgba(255,255,255,0.85)";
-            const artistY = titleY + (titleFontSize / 2) + (artistFontSize * 0.45);
+            // The 0.2 factor you asked for
+            const artistY = titleY + (titleFontSize / 2) + (artistFontSize * 0.2);
             tCtx.fillText(artistName, 640, artistY);
         }
 
