@@ -5,19 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LOFT Lyric Studio</title>
     <style>
-        /* Only for Canvas Rendering */
+        /* Canvas Specific Font */
         @font-face {
             font-family: 'LyricFont';
             src: url('defaultfont.otf');
         }
 
-        :root { --accent: #ff85a2; --bg: #0b0b0b; }
+        :root { --accent: #ff85a2; --bg: #050505; }
         
-        /* Dashboard uses system fonts, not the custom one */
         body { 
             background-color: var(--bg); 
             color: white; 
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            font-family: 'Segoe UI', sans-serif; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -25,25 +24,25 @@
             margin: 0; 
         }
         
-        #canvas-wrapper { 
-            position: relative; 
+        /* Unified Preview Wrapper */
+        #preview-container {
+            width: 800px;
             box-shadow: 0 25px 70px rgba(0,0,0,0.9); 
-            margin-bottom: 10px; 
+            margin-bottom: 20px; 
             border-radius: 15px; 
             overflow: hidden; 
             border: 2px solid #222; 
-            background: #000;
-            width: 800px;
-        }
-        canvas { display: block; width: 100%; height: auto; }
-
-        #player-bar {
-            width: 800px;
             background: #111;
-            border-radius: 10px;
+        }
+
+        canvas { display: block; width: 100%; height: auto; background: #000; }
+
+        /* Player Bar locked to bottom of preview */
+        #player-bar {
+            width: 100%;
+            background: #111;
             padding: 5px;
-            border: 1px solid #333;
-            margin-bottom: 20px;
+            border-top: 1px solid #333;
             box-sizing: border-box;
         }
         audio { 
@@ -52,8 +51,9 @@
             filter: invert(100%) hue-rotate(180deg) brightness(1.5); 
         }
 
+        /* Dashboard Styling */
         .dashboard { 
-            background: #161616; 
+            background: #111; 
             padding: 25px; 
             border-radius: 20px; 
             width: 800px; 
@@ -61,18 +61,21 @@
             flex-direction: column; 
             gap: 15px; 
             box-sizing: border-box; 
-            border: 1px solid #222; 
+            border: 1px solid #333; 
         }
 
         .input-row { display: flex; gap: 12px; align-items: center; }
-        .label { font-size: 11px; color: #777; min-width: 90px; text-transform: uppercase; font-weight: bold; }
+        .label { font-size: 11px; color: #777; min-width: 90px; text-transform: uppercase; letter-spacing: 1px; }
 
         input[type="text"], input[type="file"] { 
-            background: #222; border: 1px solid #333; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px;
+            background: #1a1a1a; border: 1px solid #444; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px; font-family: inherit;
         }
 
+        .checkbox-container { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #ccc; }
+        input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
+
         button { 
-            padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.2s;
+            padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.3s; font-family: inherit;
         }
         #confirmBtn { background: var(--accent); }
         #recordBtn { background: #e74c3c; color: white; }
@@ -81,44 +84,40 @@
         @keyframes pulse { 50% { opacity: 0.5; } }
 
         #lyrics-results { 
-            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 160px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px;
         }
         .lyric-card { 
-            background: #1d1d1d; padding: 12px; border-radius: 8px; border: 1px solid #222; cursor: pointer; font-size: 13px; 
+            background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #222; cursor: pointer; font-size: 13px; 
             display: flex; justify-content: space-between; align-items: center;
         }
-        .lyric-card:hover { border-color: #444; }
-        .lyric-card.active { border-color: var(--accent); background: #25181b; }
+        .lyric-card.active { border-color: var(--accent); background: #1f1417; }
         .lyric-duration { color: var(--accent); font-family: monospace; font-size: 11px; }
         
-        .status { font-size: 12px; color: #555; text-align: center; }
-        input[type="range"] { flex: 2; accent-color: var(--accent); }
+        .status { font-size: 12px; color: #555; text-align: center; margin-top: 5px; }
+        input[type="range"] { flex: 2; accent-color: var(--accent); cursor: pointer; }
         #offsetVal { min-width: 45px; font-size: 13px; font-family: monospace; color: var(--accent); }
     </style>
 </head>
 <body>
 
-    <div id="canvas-wrapper">
+    <div id="preview-container">
         <canvas id="previewCanvas" width="1280" height="720"></canvas>
-    </div>
-
-    <div id="player-bar">
-        <audio id="audioPlayer" controls crossorigin="anonymous"></audio>
+        <div id="player-bar">
+            <audio id="audioPlayer" controls crossorigin="anonymous"></audio>
+        </div>
     </div>
 
     <div class="dashboard">
         <div class="input-row">
-            <span class="label">Style</span>
-            <input type="file" id="fontUpload" accept=".ttf,.otf,.woff">
-            <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
+            <span class="label">Custom Font</span>
+            <input type="file" id="fontUpload" accept=".ttf,.otf">
+            <label class="checkbox-container">
                 <input type="checkbox" id="blurToggle"> Blur BG
             </label>
         </div>
         
-        <div class="input-row"><span class="label">Media</span>
-            <input type="file" id="bgUpload" accept="image/*" title="Background">
-            <input type="file" id="audioUpload" accept="audio/*" title="Audio">
-        </div>
+        <div class="input-row"><span class="label">Background</span><input type="file" id="bgUpload" accept="image/*"></div>
+        <div class="input-row"><span class="label">Audio File</span><input type="file" id="audioUpload" accept="audio/*"></div>
 
         <div class="input-row">
             <input type="text" id="artist" placeholder="Artist Name">
@@ -126,18 +125,18 @@
         </div>
 
         <div class="input-row">
-            <span class="label">Sync Offset</span>
+            <span class="label">Lyric Offset</span>
             <input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0">
             <span id="offsetVal">0.0s</span>
         </div>
         
         <div class="input-row">
-            <button id="confirmBtn">Find Lyrics</button>
-            <button id="recordBtn">Export MP4</button>
+            <button id="confirmBtn">Sync & Search</button>
+            <button id="recordBtn">Start Export</button>
         </div>
 
         <div id="lyrics-results"></div>
-        <div class="status" id="statusMsg">Lyrics font: defaultfont.otf</div>
+        <div class="status" id="statusMsg">Font: Default (defaultfont.otf)</div>
     </div>
 
     <script>
@@ -172,14 +171,8 @@
         let customFontName = 'LyricFont', bgImg = new Image();
         bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
 
-        offsetSlider.oninput = () => {
-            let val = parseFloat(offsetSlider.value);
-            offsetDisplay.innerText = (val > 0 ? "+" : "") + val.toFixed(1) + "s";
-        };
-
         function formatTime(sec) {
-            const m = Math.floor(sec / 60);
-            const s = Math.floor(sec % 60);
+            const m = Math.floor(sec / 60); const s = Math.floor(sec % 60);
             return `${m}:${s < 10 ? '0' : ''}${s}`;
         }
 
@@ -216,18 +209,25 @@
                 ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 25;
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
-                const shouldShowIntro = firstLyricTimeMs > (OUTRO_START + LOGO_OUTRO + 200);
-
-                if (shouldShowIntro && elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs - 300) {
-                    const introOpacity = Math.min(1, (elapsed - OUTRO_START) / 800);
-                    ctx.save(); ctx.globalAlpha = introOpacity;
-                    ctx.font = `bold 85px "${customFontName}"`;
-                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 25);
-                    ctx.font = `32px "${customFontName}"`; ctx.fillStyle = "rgba(255,255,255,0.75)";
+                
+                // --- INTRO TEXT WITH FADE OUT ---
+                if (elapsed > OUTRO_START && adjustedTimeMs < firstLyricTimeMs) {
+                    let introOp = 1;
+                    const fadeStart = firstLyricTimeMs - 800;
+                    if (adjustedTimeMs > fadeStart) {
+                        introOp = 1 - ((adjustedTimeMs - fadeStart) / 800);
+                    }
+                    
+                    ctx.save(); ctx.globalAlpha = Math.max(0, introOp);
+                    ctx.font = `bold 105px "${customFontName}"`;
+                    ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 15);
+                    ctx.font = `42px "${customFontName}"`;
+                    ctx.fillStyle = "rgba(255,255,255,0.8)";
                     ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 65);
                     ctx.restore();
                 }
 
+                // --- LYRICS ---
                 if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
                     if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } }
                     else if (textOpacity < 1) { textOpacity += 0.25; }
@@ -239,6 +239,7 @@
                     }
                 }
 
+                // Watermark Logo
                 const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
                 if (logoWipeAlpha > 0) {
                     ctx.save(); const logoSize = 85, margin = 20;
@@ -251,15 +252,16 @@
                 }
             }
 
+            // --- INTRO LOGO ANIMATION ---
             if (wipeProgress < 1) {
                 ctx.save();
                 const totalTravel = canvas.width * 4.8;
                 ctx.translate(-totalTravel * wipeProgress, 0); ctx.rotate(-15 * Math.PI / 180);
                 ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10);
-                ctx.lineWidth = 4; ctx.strokeStyle = '#000'; 
                 
                 memphisShapes.forEach(s => {
                     ctx.save(); ctx.translate(s.x - canvas.width, s.y); ctx.rotate(s.rotation); ctx.beginPath();
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
                     if(s.type === 0){ const hs=s.size/2; ctx.moveTo(-hs,-hs); ctx.lineTo(hs,hs); ctx.moveTo(hs,-hs); ctx.lineTo(-hs,hs); ctx.stroke(); }
                     else if(s.type === 1){ ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.stroke(); }
                     else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); }
@@ -282,13 +284,8 @@
                     ctx.translate(canvas.width/2, canvas.height/2); 
                     ctx.scale(sc, sc); 
                     ctx.globalAlpha = op;
-                    
-                    // FIXED: NO GLOW during start (brightness 0 only), GLOW enabled only during transition/outro
-                    if (elapsed > OUTRO_START) {
-                        ctx.shadowColor = "rgba(0,0,0,0.5)";
-                        ctx.shadowBlur = 30;
-                    }
-                    
+                    ctx.shadowColor = "rgba(0,0,0,0.6)";
+                    ctx.shadowBlur = 35;
                     ctx.filter = 'brightness(0)'; 
                     if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320);
                     ctx.restore();
@@ -300,22 +297,20 @@
         render();
 
         bgUpload.onchange = (e) => { const f = e.target.files[0]; if (f) { const rd = new FileReader(); rd.onload = (ev) => bgImg.src = ev.target.result; rd.readAsDataURL(f); } };
-        fontUpload.onchange = async (e) => { const f = e.target.files[0]; if (f) { const b = await f.arrayBuffer(); const ft = new FontFace('UserCustomFont', b); await ft.load(); document.fonts.add(ft); customFontName = 'UserCustomFont'; } };
+        fontUpload.onchange = async (e) => { const f = e.target.files[0]; if (f) { const b = await f.arrayBuffer(); const ft = new FontFace('LyricFont', b); await ft.load(); document.fonts.add(ft); customFontName = 'LyricFont'; } };
         document.getElementById('audioUpload').onchange = (e) => { const f = e.target.files[0]; if (f) audioPlayer.src = URL.createObjectURL(f); };
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim();
-            if(!t) return alert("Please enter a Song Title");
-            statusMsg.innerText = "Searching LRCLIB...";
+            if(!t) return alert("Song Title is required");
+            statusMsg.innerText = "Searching...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`);
                 const d = await r.json();
                 lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
-                    const card = document.createElement('div'); card.className = 'lyric-card'; card.id = `res-${item.id}`;
-                    // ADDED: Length/Duration display
-                    card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div>
-                                      <span class="lyric-duration">${formatTime(item.duration)}</span>`;
+                    const card = document.createElement('div'); card.className = 'lyric-card';
+                    card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div><span class="lyric-duration">${formatTime(item.duration)}</span>`;
                     card.onclick = () => {
                         syncedLyrics = item.syncedLyrics.split('\n').map(line => {
                             const m = line.match(/\[(\d+):(\d+\.\d+)\]/);
@@ -324,11 +319,10 @@
                         document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active'));
                         card.classList.add('active'); currentLineIndex = -1; displayedText = ""; targetText = "";
                     };
-                    lyricsResults.appendChild(card);
-                    if (i === 0) card.click();
+                    lyricsResults.appendChild(card); if (i === 0) card.click();
                 });
-                statusMsg.innerText = d.length ? "Lyrics loaded." : "No lyrics found.";
-            } catch (e) { statusMsg.innerText = "Search error."; }
+                statusMsg.innerText = d.length ? "Lyrics synced." : "None found.";
+            } catch (e) { statusMsg.innerText = "Error searching."; }
         };
 
         audioPlayer.ontimeupdate = () => {
@@ -338,23 +332,20 @@
             if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; }
         };
 
-        let mediaRecorder, recordedChunks = [];
         recordBtn.onclick = async () => {
-            if (mediaRecorder?.state === "recording") { mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
+            if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
             else {
-                recordedChunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1;
-                const canvasStream = canvas.captureStream(60); 
-                const audioContext = new AudioContext();
-                const dest = audioContext.createMediaStreamDestination();
-                audioContext.createMediaElementSource(audioPlayer).connect(dest);
-                audioContext.createMediaElementSource(audioPlayer).connect(audioContext.destination);
-                mediaRecorder = new MediaRecorder(new MediaStream([...canvasStream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
-                mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks, { type: 'video/mp4' }));
-                    a.download = `LOFT_${document.getElementById('title').value || 'Export'}.mp4`; a.click();
+                const chunks = []; audioPlayer.currentTime = 0; currentLineIndex = -1;
+                const stream = canvas.captureStream(60); 
+                const ac = new AudioContext(); const dest = ac.createMediaStreamDestination();
+                ac.createMediaElementSource(audioPlayer).connect(dest); ac.createMediaElementSource(audioPlayer).connect(ac.destination);
+                window.mediaRecorder = new MediaRecorder(new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]), { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
+                window.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+                window.mediaRecorder.onstop = () => {
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/mp4' }));
+                    a.download = `LOFT_${document.getElementById('title').value || 'Studio'}.mp4`; a.click();
                 };
-                mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
+                window.mediaRecorder.start(); audioPlayer.play(); recordBtn.classList.add('recording');
             }
         };
     </script>
