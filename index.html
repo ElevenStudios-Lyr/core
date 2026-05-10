@@ -215,17 +215,24 @@
                 const source = ac.createMediaElementSource(audioPlayer);
                 source.connect(dest); source.connect(ac.destination);
                 const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+                
+                // FIXED: Exporting to MP4
                 try {
-                    window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 15000000 });
+                    window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: 15000000 });
                 } catch (e) {
-                    window.mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: 10000000 });
+                    try {
+                        window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4', videoBitsPerSecond: 12000000 });
+                    } catch (e2) {
+                        window.mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: 10000000 });
+                    }
                 }
+
                 window.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
                 window.mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' });
+                    const blob = new Blob(chunks, { type: 'video/mp4' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a'); a.href = url;
-                    a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.webm`;
+                    a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.mp4`;
                     document.body.appendChild(a); a.click(); document.body.removeChild(a);
                     statusMsg.innerText = "Video Saved.";
                 };
