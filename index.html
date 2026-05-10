@@ -51,6 +51,7 @@
             <span class="label">Custom Font</span>
             <input type="file" id="fontUpload" accept=".ttf,.otf">
             <label class="checkbox-container"><input type="checkbox" id="blurToggle"> Blur BG</label>
+            <label class="checkbox-container"><input type="checkbox" id="simpleLogo"> Simple Logo</label>
         </div>
         <div class="input-row"><span class="label">Background</span><input type="file" id="bgUpload" accept="image/*"></div>
         <div class="input-row"><span class="label">Audio File</span><input type="file" id="audioUpload" accept="audio/*"></div>
@@ -62,7 +63,7 @@
     </div>
 
     <script>
-        const canvas = document.getElementById('previewCanvas'), ctx = canvas.getContext('2d'), audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
+        const canvas = document.getElementById('previewCanvas'), ctx = canvas.getContext('2d'), audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), simpleLogo = document.getElementById('simpleLogo'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
         const logo = new Image(); logo.src = 'ic.png';
         
         const INTRO_DUR = 800, STAY_DUR = 1800, LOGO_OUTRO = 350;
@@ -105,8 +106,7 @@
             }
 
             const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeSec = curTime + parseFloat(offsetSlider.value), adjustedTimeMs = adjustedTimeSec * 1000;
-            ctx.font = `10px "${customFontName}"`; 
-
+            
             let wipeProgress = 0; if (elapsed > WIPE_START) wipeProgress = easeInOutSine(Math.min(1, (elapsed - WIPE_START) / WIPE_DUR));
 
             if (wipeProgress > 0) {
@@ -175,11 +175,24 @@
                 ctx.fillStyle = '#000000'; ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10); ctx.restore();
 
                 if (elapsed < OUTRO_START + LOGO_OUTRO) {
-                    let op = 0, sc = 1.0; 
-                    if (elapsed < INTRO_DUR) { let t = easeOutCubic(elapsed/INTRO_DUR); op = t; sc = 0.5 + 0.45 * t; } 
-                    else if (elapsed < OUTRO_START) { op = 1; sc = 0.95 + (0.07 * ((elapsed - INTRO_DUR)/STAY_DUR)); } 
-                    else { let t = (elapsed - OUTRO_START)/LOGO_OUTRO; op = Math.max(0, 1-t); sc = 1.02 + (0.02*t); }
-                    ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.scale(sc, sc); ctx.globalAlpha = op; ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 35; ctx.filter = 'brightness(0)'; if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320); ctx.restore();
+                    let op = 0, sc = 1.0;
+                    if (simpleLogo.checked) {
+                        // Simple Fade In Logic
+                        if (elapsed < INTRO_DUR) op = elapsed / INTRO_DUR;
+                        else if (elapsed < OUTRO_START) op = 1;
+                        else op = Math.max(0, 1 - (elapsed - OUTRO_START) / LOGO_OUTRO);
+                        sc = 0.95; // Steady scale
+                    } else {
+                        // Original Dynamic Scale Logic
+                        if (elapsed < INTRO_DUR) { let t = easeOutCubic(elapsed/INTRO_DUR); op = t; sc = 0.5 + 0.45 * t; } 
+                        else if (elapsed < OUTRO_START) { op = 1; sc = 0.95 + (0.07 * ((elapsed - INTRO_DUR)/STAY_DUR)); } 
+                        else { let t = (elapsed - OUTRO_START)/LOGO_OUTRO; op = Math.max(0, 1-t); sc = 1.02 + (0.02*t); }
+                    }
+                    
+                    ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.scale(sc, sc); ctx.globalAlpha = op; 
+                    if (!simpleLogo.checked) { ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 35; }
+                    ctx.filter = 'brightness(0)'; 
+                    if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320); ctx.restore();
                 }
             }
             if (audioPlayer.duration > 0) { 
@@ -228,11 +241,9 @@
                 window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Exporting...";
             } else {
                 if (isCountingDown) return;
-                
                 statusMsg.innerText = "Preparing...";
                 countdownVal = 5;
                 isCountingDown = true;
-
                 const timer = setInterval(() => {
                     countdownVal--;
                     if (countdownVal <= 0) {
