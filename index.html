@@ -11,31 +11,32 @@
             font-display: block; 
         }
         :root { --accent: #ff85a2; --bg: #050505; }
-        body { background-color: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        body { background-color: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; padding-bottom: 100px; }
         #font-prime { font-family: 'LyricFont'; position: absolute; opacity: 0; pointer-events: none; top: -100px; }
         #preview-container { width: 800px; box-shadow: 0 25px 70px rgba(0,0,0,0.9); margin-bottom: 20px; border-radius: 15px; overflow: hidden; border: 2px solid #222; background: #111; }
         canvas { display: block; width: 100%; height: auto; background: #000; }
         #player-bar { width: 100%; background: #111; padding: 5px; border-top: 1px solid #333; box-sizing: border-box; }
         audio { width: 100%; height: 40px; filter: invert(100%) hue-rotate(180deg) brightness(1.5); }
-        .dashboard { background: #111; padding: 25px; border-radius: 20px; width: 800px; display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; border: 1px solid #333; }
+        .dashboard { background: #111; padding: 25px; border-radius: 20px; width: 800px; display: flex; flex-direction: column; gap: 15px; box-sizing: border-box; border: 1px solid #333; margin-bottom: 20px; }
         .input-row { display: flex; gap: 12px; align-items: center; }
         .label { font-size: 11px; color: #777; min-width: 90px; text-transform: uppercase; letter-spacing: 1px; }
         input[type="text"], input[type="file"], input[type="number"] { background: #1a1a1a; border: 1px solid #444; padding: 12px; border-radius: 10px; color: white; flex: 1; font-size: 14px; font-family: inherit; }
+        .size-ctrl { display: flex; gap: 5px; }
+        .btn-sm { width: 35px; height: 35px; padding: 0; background: #333; color: white; border-radius: 8px; font-size: 18px; }
         .checkbox-container { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: #ccc; }
         input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); }
         button { padding: 15px; border: none; color: #000; font-weight: bold; text-transform: uppercase; cursor: pointer; border-radius: 10px; flex: 1; transition: 0.3s; font-family: inherit; }
         #confirmBtn { background: var(--accent); }
         #recordBtn { background: #e74c3c; color: white; }
-        #thumbBtn { background: #555; color: white; }
-        #recordBtn.recording { background: #fff; color: #e74c3c; animation: pulse 1s infinite; }
-        @keyframes pulse { 50% { opacity: 0.5; } }
+        #thumbBtn { background: #2ecc71; color: white; }
         #lyrics-results { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 150px; overflow-y: auto; padding: 5px; background: #0a0a0a; border-radius: 12px; }
         .lyric-card { background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #222; cursor: pointer; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
         .lyric-card.active { border-color: var(--accent); background: #1f1417; }
-        .lyric-duration { color: var(--accent); font-family: monospace; font-size: 11px; }
         .status { font-size: 12px; color: #555; text-align: center; margin-top: 5px; }
-        input[type="range"] { flex: 2; accent-color: var(--accent); cursor: pointer; }
-        #offsetVal { min-width: 45px; font-size: 13px; font-family: monospace; color: var(--accent); text-align: right; }
+        
+        /* Thumbnail Preview Section */
+        .thumb-preview-section { width: 800px; text-align: center; border-top: 2px dashed #333; padding-top: 20px; }
+        #thumbPreviewCanvas { width: 400px; border-radius: 10px; border: 1px solid #444; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
@@ -51,35 +52,112 @@
         <div class="input-row">
             <span class="label">Custom Font</span>
             <input type="file" id="fontUpload" accept=".ttf,.otf">
-            <label class="checkbox-container"><input type="checkbox" id="blurToggle"> Blur BG</label>
+            <label class="checkbox-container"><input type="checkbox" id="blurToggle" checked> Blur BG</label>
             <label class="checkbox-container"><input type="checkbox" id="simpleLogo" checked> Simple Logo</label>
             <label class="checkbox-container"><input type="checkbox" id="hideShapes" checked> Hide Shapes</label>
         </div>
         <div class="input-row">
             <span class="label">Recording FPS</span>
             <input type="number" id="fpsInput" value="30" min="1" max="60" style="max-width: 80px;">
-            <span style="font-size: 11px; color: #555;">(Lower FPS = Smoother recording)</span>
         </div>
         <div class="input-row"><span class="label">Background</span><input type="file" id="bgUpload" accept="image/*"></div>
         <div class="input-row"><span class="label">Audio File</span><input type="file" id="audioUpload" accept="audio/*"></div>
-        <div class="input-row"><input type="text" id="artist" placeholder="Artist Name"><input type="text" id="title" placeholder="Song Title"></div>
-        <div class="input-row"><span class="label">Lyric Offset</span><input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0"><span id="offsetVal">0.0s</span></div>
+        
+        <div class="input-row">
+            <span class="label">Title</span>
+            <input type="text" id="title" placeholder="Song Title">
+            <div class="size-ctrl">
+                <button class="btn-sm" onclick="adjustSize('title', -10)">-</button>
+                <button class="btn-sm" onclick="adjustSize('title', 10)">+</button>
+            </div>
+        </div>
+        <div class="input-row">
+            <span class="label">Artist</span>
+            <input type="text" id="artist" placeholder="Artist Name">
+            <div class="size-ctrl">
+                <button class="btn-sm" onclick="adjustSize('artist', -5)">-</button>
+                <button class="btn-sm" onclick="adjustSize('artist', 5)">+</button>
+            </div>
+        </div>
+
+        <div class="input-row"><span class="label">Lyric Offset</span><input type="range" id="lyricOffset" min="-2.0" max="2.0" step="0.1" value="0"><span id="offsetVal" style="color:var(--accent)">0.0s</span></div>
         <div class="input-row">
             <button id="confirmBtn">Sync & Search</button>
-            <button id="thumbBtn">Generate Thumbnail</button>
+            <button id="thumbBtn">Download Thumbnail</button>
             <button id="recordBtn">Start Export</button>
         </div>
         <div id="lyrics-results"></div>
         <div class="status" id="statusMsg">Eleven Studios | Dashboard</div>
     </div>
 
+    <div class="thumb-preview-section">
+        <h3 style="font-size: 14px; color: #777; text-transform: uppercase;">Thumbnail Live Preview</h3>
+        <canvas id="thumbPreviewCanvas" width="1280" height="720"></canvas>
+    </div>
+
     <script>
         const canvas = document.getElementById('previewCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const thumbPreviewCanvas = document.getElementById('thumbPreviewCanvas');
+        const tCtx = thumbPreviewCanvas.getContext('2d');
         
         const audioPlayer = document.getElementById('audioPlayer'), recordBtn = document.getElementById('recordBtn'), thumbBtn = document.getElementById('thumbBtn'), statusMsg = document.getElementById('statusMsg'), blurToggle = document.getElementById('blurToggle'), simpleLogo = document.getElementById('simpleLogo'), hideShapes = document.getElementById('hideShapes'), fpsInput = document.getElementById('fpsInput'), bgUpload = document.getElementById('bgUpload'), fontUpload = document.getElementById('fontUpload'), lyricsResults = document.getElementById('lyrics-results'), offsetSlider = document.getElementById('lyricOffset'), offsetDisplay = document.getElementById('offsetVal');
         const logo = new Image(); logo.src = 'ic.png';
         
+        // Thumbnail Specific States
+        let titleFontSize = 180;
+        let artistFontSize = 80;
+        let customFontName = 'LyricFont';
+        let bgImg = new Image();
+        bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
+
+        function adjustSize(type, amount) {
+            if (type === 'title') titleFontSize = Math.max(50, titleFontSize + amount);
+            else artistFontSize = Math.max(20, artistFontSize + amount);
+            updateThumbnailPreview();
+        }
+
+        function updateThumbnailPreview() {
+            tCtx.clearRect(0, 0, 1280, 720);
+            tCtx.save();
+            if (blurToggle.checked) tCtx.filter = 'blur(10px)';
+            const canvasAspect = 1280 / 720, imgAspect = bgImg.width / bgImg.height;
+            let dW, dH; if (imgAspect > canvasAspect) { dH = 720; dW = dH * imgAspect; } else { dW = 1280; dH = dW / imgAspect; }
+            tCtx.drawImage(bgImg, (1280 - dW) / 2, (720 - dH) / 2, dW, dH);
+            tCtx.restore();
+
+            tCtx.textAlign = "center"; tCtx.textBaseline = "middle"; tCtx.fillStyle = "white";
+            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 35;
+            
+            const songTitle = document.getElementById('title').value.toUpperCase() || "SONG TITLE";
+            const artistName = document.getElementById('artist').value.toUpperCase() || "ARTIST NAME";
+
+            // Draw Title
+            tCtx.font = `bold ${titleFontSize}px "${customFontName}"`;
+            const titleY = 360 - (artistFontSize / 2); // Auto center vertically based on both sizes
+            tCtx.fillText(songTitle, 640, titleY);
+            
+            // Draw Artist (Auto-adjust position below title)
+            tCtx.font = `800 ${artistFontSize}px "${customFontName}"`;
+            tCtx.fillStyle = "rgba(255,255,255,0.85)";
+            const artistY = titleY + (titleFontSize / 2) + (artistFontSize / 1.5);
+            tCtx.fillText(artistName, 640, artistY);
+        }
+
+        // Event Listeners for Live Update
+        document.getElementById('title').oninput = updateThumbnailPreview;
+        document.getElementById('artist').oninput = updateThumbnailPreview;
+        blurToggle.onchange = updateThumbnailPreview;
+
+        thumbBtn.onclick = () => {
+            updateThumbnailPreview();
+            const link = document.createElement('a');
+            link.download = `Thumb_${document.getElementById('title').value || 'Video'}.png`;
+            link.href = thumbPreviewCanvas.toDataURL('image/png');
+            link.click();
+        };
+
+        // Existing Render loop and Logic
         const INTRO_DUR = 800, STAY_DUR = 1800, LOGO_OUTRO = 350;
         const OUTRO_START = INTRO_DUR + STAY_DUR;
         const WIPE_DELAY = 600, WIPE_START = OUTRO_START - WIPE_DELAY, WIPE_DUR = 1400;
@@ -89,8 +167,7 @@
             memphisShapes.push({ x: Math.random() * 5000, y: Math.random() * 2000 - 500, size: Math.random() * 20 + 15, type: Math.floor(Math.random() * 5), vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, rotation: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.03 });
         }
 
-        let syncedLyrics = [], currentLineIndex = -1, displayedText = "", targetText = "", textOpacity = 0, isFading = false, customFontName = 'LyricFont', bgImg = new Image();
-        bgImg.crossOrigin = "anonymous"; bgImg.src = 'https://vip-go.premiumbeat.com/wp-content/uploads/2018/10/pink-sky-cover.jpg';
+        let syncedLyrics = [], currentLineIndex = -1, displayedText = "", targetText = "", textOpacity = 0, isFading = false;
         let isCountingDown = false, countdownVal = 0;
 
         offsetSlider.oninput = () => { offsetDisplay.innerText = `${parseFloat(offsetSlider.value).toFixed(1)}s`; };
@@ -107,193 +184,102 @@
         }
 
         function render() {
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            ctx.fillStyle = "black"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             if (isCountingDown) {
-                ctx.fillStyle = "white";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.font = "bold 200px sans-serif";
-                ctx.fillText(countdownVal, canvas.width/2, canvas.height/2);
-                requestAnimationFrame(render);
-                return;
+                ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.font = "bold 200px sans-serif";
+                ctx.fillText(countdownVal, canvas.width/2, canvas.height/2); requestAnimationFrame(render); return;
             }
-
-            const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeSec = curTime + parseFloat(offsetSlider.value), adjustedTimeMs = adjustedTimeSec * 1000;
+            const curTime = audioPlayer.currentTime, elapsed = curTime * 1000, adjustedTimeMs = (curTime + parseFloat(offsetSlider.value)) * 1000;
             let wipeProgress = 0; if (elapsed > WIPE_START) wipeProgress = easeInOutSine(Math.min(1, (elapsed - WIPE_START) / WIPE_DUR));
 
             if (wipeProgress > 0) {
                 ctx.save(); if (blurToggle.checked) ctx.filter = 'blur(10px)';
-                const canvasAspect = canvas.width / canvas.height, imgAspect = bgImg.width / bgImg.height;
-                let dW, dH; if (imgAspect > canvasAspect) { dH = canvas.height; dW = dH * imgAspect; } else { dW = canvas.width; dH = dW / imgAspect; }
+                const cA = canvas.width/canvas.height, iA = bgImg.width/bgImg.height;
+                let dW, dH; if (iA > cA) { dH = canvas.height; dW = dH * iA; } else { dW = canvas.width; dH = dW / iA; }
                 ctx.drawImage(bgImg, (canvas.width - dW) / 2, (canvas.height - dH) / 2, dW, dH); ctx.restore();
                 ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white"; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 25;
 
                 const firstLyricTimeMs = (syncedLyrics.length > 0 ? syncedLyrics[0].time * 1000 : 999999);
                 const wipeFinishedMs = WIPE_START + WIPE_DUR;
-
                 if (elapsed > wipeFinishedMs && adjustedTimeMs < firstLyricTimeMs && (firstLyricTimeMs - wipeFinishedMs > 2000)) {
                     let introOp = 0;
-                    const introDisplayStart = wipeFinishedMs + 200, introDisplayFadeOut = firstLyricTimeMs - 300;
-                    if (elapsed > introDisplayStart && elapsed < introDisplayFadeOut) introOp = 1;
-                    else if (elapsed >= introDisplayFadeOut) introOp = 1 - ((elapsed - introDisplayFadeOut) / 300);
-                    else if (elapsed > wipeFinishedMs) introOp = (elapsed - wipeFinishedMs) / 200;
-                    ctx.save(); ctx.globalAlpha = Math.max(0, introOp);
+                    if (elapsed > wipeFinishedMs + 200 && elapsed < firstLyricTimeMs - 300) introOp = 1;
+                    ctx.save(); ctx.globalAlpha = introOp;
                     ctx.font = `bold 125px "${customFontName}"`; ctx.fillText(document.getElementById('title').value.toUpperCase() || "UNTITLED", canvas.width/2, canvas.height/2 - 20);
-                    ctx.font = `52px "${customFontName}"`; ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 70);
+                    ctx.font = `52px "${customFontName}"`; ctx.fillText(document.getElementById('artist').value.toUpperCase() || "UNKNOWN ARTIST", canvas.width/2, canvas.height/2 + 70);
                     ctx.restore();
                 }
 
-                if (adjustedTimeSec >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
+                if (adjustedTimeMs/1000 >= (syncedLyrics.length > 0 ? syncedLyrics[0].time : 9999) - 0.2) {
                     if (isFading) { textOpacity -= 0.25; if (textOpacity <= 0) { textOpacity = 0; displayedText = targetText; isFading = false; } } else if (textOpacity < 1) { textOpacity += 0.25; }
-                    if (displayedText) { ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, textOpacity)); ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.9, 115)}px "${customFontName}"`; ctx.fillText(displayedText.toUpperCase(), canvas.width/2, canvas.height/2); ctx.restore(); }
-                }
-
-                const logoWipeAlpha = Math.min(1, (elapsed - (WIPE_START + 400)) / 1000);
-                if (logoWipeAlpha > 0) {
-                    ctx.save(); const logoSize = 85, margin = 20, interval = 5000, spinDuration = 1200, cycleTime = elapsed % interval;
-                    let rotation = 0; if (cycleTime < spinDuration) { let t = cycleTime / spinDuration; rotation = (easeInOutSine(t)) * -(Math.PI * 4); }
-                    ctx.translate(canvas.width - logoSize/2 - margin, canvas.height - logoSize/2 - margin); ctx.rotate(rotation); 
-                    ctx.globalAlpha = logoWipeAlpha * 0.9; ctx.filter = 'brightness(100)'; 
-                    if (logo.complete) ctx.drawImage(logo, -logoSize/2, -logoSize/2, logoSize, logoSize); 
-                    ctx.restore();
+                    if (displayedText) { ctx.save(); ctx.globalAlpha = textOpacity; ctx.font = `bold ${getFitSize(displayedText.toUpperCase(), canvas.width * 0.9, 115)}px "${customFontName}"`; ctx.fillText(displayedText.toUpperCase(), canvas.width/2, canvas.height/2); ctx.restore(); }
                 }
             }
 
             if (wipeProgress < 1) {
                 ctx.save(); const totalTravel = canvas.width * 4.8; ctx.translate(-totalTravel * wipeProgress, 0); ctx.rotate(-15 * Math.PI / 180); 
-                ctx.save(); ctx.beginPath(); ctx.rect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10); ctx.clip(); 
                 ctx.fillStyle = '#FFFFFF'; ctx.fillRect(-canvas.width, -canvas.height * 3, canvas.width * 5, canvas.height * 10);
                 if (!hideShapes.checked) {
                     memphisShapes.forEach(s => { 
                         ctx.save(); ctx.translate(s.x - canvas.width, s.y); ctx.rotate(s.rotation); ctx.beginPath(); ctx.strokeStyle = '#000'; ctx.lineWidth = 4; 
-                        if(s.type === 0){ const hs=s.size/2; ctx.moveTo(-hs,-hs); ctx.lineTo(hs,hs); ctx.moveTo(hs,-hs); ctx.lineTo(-hs,hs); ctx.stroke(); } 
-                        else if(s.type === 1){ ctx.arc(0,0,s.size/2,0,Math.PI*2); ctx.stroke(); } 
-                        else { ctx.rect(-s.size/2, -s.size/2, s.size, s.size); ctx.stroke(); } 
-                        ctx.restore(); s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed; 
+                        if(s.type === 1) ctx.arc(0,0,s.size/2,0,Math.PI*2); else ctx.rect(-s.size/2, -s.size/2, s.size, s.size);
+                        ctx.stroke(); ctx.restore(); s.x += s.vx; s.y += s.vy; s.rotation += s.rotSpeed; 
                     });
                 }
-                ctx.restore(); ctx.fillStyle = '#000000'; ctx.fillRect(canvas.width * 3.8, -canvas.height * 3, 800, canvas.height * 10); ctx.restore();
+                ctx.restore();
 
                 if (elapsed < OUTRO_START + LOGO_OUTRO && audioPlayer.currentTime > 0) {
-                    let op = 0, sc = 1.0;
-                    if (simpleLogo.checked) {
-                        if (elapsed < INTRO_DUR) op = elapsed / INTRO_DUR; else if (elapsed < OUTRO_START) op = 1; else op = Math.max(0, 1 - (elapsed - OUTRO_START) / LOGO_OUTRO);
-                        sc = 0.95; ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 15;
-                    } else {
-                        if (elapsed < INTRO_DUR) { let t = easeOutCubic(elapsed/INTRO_DUR); op = t; sc = 0.5 + 0.45 * t; } 
-                        else if (elapsed < OUTRO_START) { op = 1; sc = 0.95 + (0.07 * ((elapsed - INTRO_DUR)/STAY_DUR)); } 
-                        else { let t = (elapsed - OUTRO_START)/LOGO_OUTRO; op = Math.max(0, 1-t); sc = 1.02 + (0.02*t); }
-                        ctx.shadowColor = "rgba(0,0,0,0.6)"; ctx.shadowBlur = 30;
-                    }
-                    ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.scale(sc, sc); ctx.globalAlpha = op; 
-                    ctx.filter = 'brightness(0)'; if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320); ctx.restore();
+                    let op = (elapsed < INTRO_DUR) ? elapsed/INTRO_DUR : (elapsed < OUTRO_START ? 1 : 1-(elapsed-OUTRO_START)/LOGO_OUTRO);
+                    ctx.save(); ctx.translate(canvas.width/2, canvas.height/2); ctx.globalAlpha = Math.max(0, op); ctx.filter = 'brightness(0)';
+                    if (logo.complete) ctx.drawImage(logo, -160, -160, 320, 320); ctx.restore();
                 }
-            }
-            if (audioPlayer.duration > 0) { 
-                const fadeDuration = 2.0, timeRemaining = audioPlayer.duration - curTime; 
-                if (timeRemaining <= fadeDuration) { const blackOp = 1 - (timeRemaining / fadeDuration); ctx.fillStyle = `rgba(0,0,0,${blackOp})`; ctx.fillRect(0, 0, canvas.width, canvas.height); } 
             }
             requestAnimationFrame(render);
         }
 
-        document.fonts.ready.then(() => { render(); });
-        bgUpload.onchange = (e) => { const f = e.target.files[0]; if (f) { const rd = new FileReader(); rd.onload = (ev) => bgImg.src = ev.target.result; rd.readAsDataURL(f); } };
-        fontUpload.onchange = async (e) => { const f = e.target.files[0]; if (f) { const b = await f.arrayBuffer(); const ft = new FontFace('LyricFont', b); await ft.load(); document.fonts.add(ft); customFontName = 'LyricFont'; } };
+        document.fonts.ready.then(() => { render(); updateThumbnailPreview(); });
+        bgUpload.onchange = (e) => { const f = e.target.files[0]; if (f) { const rd = new FileReader(); rd.onload = (ev) => { bgImg.src = ev.target.result; bgImg.onload = updateThumbnailPreview; }; rd.readAsDataURL(f); } };
+        fontUpload.onchange = async (e) => { const f = e.target.files[0]; if (f) { const b = await f.arrayBuffer(); const ft = new FontFace('LyricFont', b); await ft.load(); document.fonts.add(ft); updateThumbnailPreview(); } };
         document.getElementById('audioUpload').onchange = (e) => { if (e.target.files[0]) audioPlayer.src = URL.createObjectURL(e.target.files[0]); };
-
-        function resetLyricState() { currentLineIndex = -1; displayedText = ""; targetText = ""; textOpacity = 0; isFading = false; }
-        audioPlayer.onplay = resetLyricState; audioPlayer.onseeked = resetLyricState;
-        audioPlayer.onended = () => { if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Done."; } };
 
         document.getElementById('confirmBtn').onclick = async () => {
             const a = document.getElementById('artist').value.trim(), t = document.getElementById('title').value.trim(); if(!t) return alert("Song Title is required");
-            statusMsg.innerText = "Syncing...";
+            statusMsg.innerText = "Searching...";
             try {
                 const r = await fetch(`https://lrclib.net/api/search?artist_name=${encodeURIComponent(a)}&track_name=${encodeURIComponent(t)}`); const d = await r.json(); lyricsResults.innerHTML = "";
                 d.filter(x => x.syncedLyrics).forEach((item, i) => {
-                    const card = document.createElement('div'); card.className = 'lyric-card'; card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div><span class="lyric-duration">${formatTime(item.duration)}</span>`;
-                    card.onclick = () => { syncedLyrics = item.syncedLyrics.split('\n').map(line => { const m = line.match(/\[(\d+):(\d+\.\d+)\]/); return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').replace(/[^a-zA-Z0-9\s']/g, '').trim() } : null; }).filter(x => x && x.text !== ""); document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active')); card.classList.add('active'); resetLyricState(); };
+                    const card = document.createElement('div'); card.className = 'lyric-card'; card.innerHTML = `<div><strong>${item.trackName}</strong><br><small>${item.artistName}</small></div>`;
+                    card.onclick = () => { syncedLyrics = item.syncedLyrics.split('\n').map(line => { const m = line.match(/\[(\d+):(\d+\.\d+)\]/); return m ? { time: (parseFloat(m[1])*60 + parseFloat(m[2])), text: line.replace(/\[.*\]/, '').trim() } : null; }).filter(x => x && x.text !== ""); document.querySelectorAll('.lyric-card').forEach(c => c.classList.remove('active')); card.classList.add('active'); };
                     lyricsResults.appendChild(card); if (i === 0) card.click();
                 });
                 statusMsg.innerText = d.length ? "Ready." : "Not found.";
             } catch (e) { statusMsg.innerText = "Error."; }
         };
 
-        // THUMBNAIL GENERATOR - Updated Text Sizes
-        thumbBtn.onclick = () => {
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 1280; tempCanvas.height = 720;
-            const tCtx = tempCanvas.getContext('2d');
-            
-            // Draw BG
-            tCtx.save();
-            if (blurToggle.checked) tCtx.filter = 'blur(10px)';
-            const canvasAspect = 1280 / 720, imgAspect = bgImg.width / bgImg.height;
-            let dW, dH; if (imgAspect > canvasAspect) { dH = 720; dW = dH * imgAspect; } else { dW = 1280; dH = dW / imgAspect; }
-            tCtx.drawImage(bgImg, (1280 - dW) / 2, (720 - dH) / 2, dW, dH);
-            tCtx.restore();
-
-            // Draw Text
-            tCtx.textAlign = "center"; tCtx.textBaseline = "middle"; tCtx.fillStyle = "white";
-            tCtx.shadowColor = "rgba(0,0,0,0.8)"; tCtx.shadowBlur = 35; // Increased blur slightly for bigger text
-            
-            const songTitle = document.getElementById('title').value.toUpperCase() || "SONG TITLE";
-            const artistName = document.getElementById('artist').value.toUpperCase() || "ARTIST NAME";
-
-            // Title - Increased from 140px to 180px
-            tCtx.font = `bold 180px "${customFontName}"`;
-            tCtx.fillText(songTitle, 640, 330); // Adjusted Y to 330
-            
-            // Artist - Increased from 60px to 80px
-            tCtx.font = `80px "${customFontName}"`; 
-            tCtx.fillStyle = "rgba(255,255,255,0.85)";
-            tCtx.fillText(artistName, 640, 450); // Adjusted Y to 450
-
-            // Auto Download
-            const link = document.createElement('a');
-            link.download = `ElevenStudios_Thumb_${songTitle}.png`;
-            link.href = tempCanvas.toDataURL('image/png');
-            link.click();
-            statusMsg.innerText = "Thumbnail Saved.";
-        };
-
-        audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
-
         recordBtn.onclick = async () => {
-            if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); statusMsg.innerText = "Exporting..."; } 
-            else { if (isCountingDown) return; statusMsg.innerText = "Preparing..."; countdownVal = 5; isCountingDown = true;
+            if (window.mediaRecorder?.state === "recording") { window.mediaRecorder.stop(); audioPlayer.pause(); recordBtn.classList.remove('recording'); } 
+            else { statusMsg.innerText = "Countdown..."; countdownVal = 5; isCountingDown = true;
                 const timer = setInterval(() => { countdownVal--; if (countdownVal <= 0) { clearInterval(timer); isCountingDown = false; startRecording(); } }, 1000);
             }
         };
 
         async function startRecording() {
-            const chunks = []; audioPlayer.currentTime = 0; resetLyricState();
+            const chunks = []; audioPlayer.currentTime = 0;
             const targetFPS = parseInt(fpsInput.value) || 30;
             const stream = canvas.captureStream(targetFPS);
-            const ac = new (window.AudioContext || window.webkitAudioContext)();
-            if (ac.state === 'suspended') await ac.resume();
-            const dest = ac.createMediaStreamDestination(), source = ac.createMediaElementSource(audioPlayer);
+            const ac = new AudioContext(); const dest = ac.createMediaStreamDestination(), source = ac.createMediaElementSource(audioPlayer);
             source.connect(dest); source.connect(ac.destination);
             const combinedStream = new MediaStream([...stream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
-            const bitRate = targetFPS > 30 ? 15000000 : 8000000;
-
-            try { window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: bitRate }); } 
-            catch (e) { window.mediaRecorder = new MediaRecorder(combinedStream, { videoBitsPerSecond: bitRate }); }
-
-            window.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+            window.mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/mp4;codecs=avc1', videoBitsPerSecond: 8000000 });
+            window.mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
             window.mediaRecorder.onstop = () => {
                 const blob = new Blob(chunks, { type: 'video/mp4' }), url = URL.createObjectURL(blob), a = document.createElement('a');
-                a.href = url; a.download = `ElevenStudios_${document.getElementById('title').value || 'Video'}.mp4`;
-                document.body.appendChild(a); a.click(); document.body.removeChild(a); statusMsg.innerText = "Saved.";
+                a.href = url; a.download = `ElevenStudios_${document.getElementById('title').value}.mp4`; a.click();
             };
-
-            window.mediaRecorder.start();
-            statusMsg.innerText = "Recording...";
-            recordBtn.classList.add('recording');
-            setTimeout(() => { audioPlayer.play(); }, 500); 
+            window.mediaRecorder.start(); recordBtn.classList.add('recording'); setTimeout(() => audioPlayer.play(), 500); 
         }
+        
+        audioPlayer.ontimeupdate = () => { const now = audioPlayer.currentTime + parseFloat(offsetSlider.value); let idx = -1; for (let i = 0; i < syncedLyrics.length; i++) { if (syncedLyrics[i].time <= now) idx = i; else break; } if (idx !== -1 && idx !== currentLineIndex) { currentLineIndex = idx; targetText = syncedLyrics[idx].text; isFading = true; } };
     </script>
 </body>
 </html>
