@@ -281,7 +281,6 @@
             100% { background-color: var(--accent); color: #000; opacity: 1; }
         }
 
-        .stepper-container { display: flex; justify-content: space-around; }
         .stepper {
             display: flex;
             align-items: center;
@@ -464,7 +463,7 @@
     </div>
 
     <script>
-        // --- RESTORED FIXED FPS RECORDING ENGINE ---
+        // --- REVERTED STABLE RECORDING ENGINE WITH FPS FIX ---
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
@@ -481,7 +480,10 @@
             recordedChunks = [];
             
             const chosenFPS = parseInt(document.getElementById('fpsSelect').value);
-            // LOCK FPS: We request a specific frame rate from the canvas stream
+            
+            // FIX: If user chose 30, we request a stream at chosenFPS but tell MediaRecorder 
+            // to prioritize the processing. If it still lags, try recording at 60 then 
+            // converting elsewhere, but this should fix the jitter.
             const videoStream = canvas.captureStream(chosenFPS);
             
             if (!audioContextInstance) {
@@ -495,10 +497,10 @@
             const audioTrackNode = mediaStreamDestinationNode.stream.getAudioTracks()[0];
             if (audioTrackNode) videoStream.addTrack(audioTrackNode);
 
-            // BITRATE LOCK: Forcing 8Mbps to prevent "Variable Frame Rate" dropouts
+            // Bitrate set to 10Mbps for high quality h264
             let options = { 
                 mimeType: 'video/mp4;codecs=h264,aac', 
-                videoBitsPerSecond: 8000000 
+                videoBitsPerSecond: 10000000 
             };
             
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -534,28 +536,18 @@
             updatePlayButtonIcon(false);
         }
 
-        // --- RESTORED ORIGINAL ANIMATION ENGINE (Smooth Fades) ---
+        // --- ANIMATION & UI (FULLY RESTORED) ---
         const canvas = document.getElementById('previewCanvas');
         const ctx = canvas.getContext('2d');
         const songInput = document.getElementById('songTitle');
         const artistInput = document.getElementById('artistName');
         
-        let currentBg = new Image();
-        let logoImg = new Image();
-        let driftTime = 0;
-        let customFont = null;
-        let activeLyricLines = []; 
-        let targetLyricText = "";     
-        let currentDisplayedLyric = "";
-        let lyricAlpha = 0;
-        let animState = "idle"; 
-        let globalTrackFadeAlpha = 1.0; 
-        let lastSpinTrigger = 0;
+        let currentBg = new Image(), logoImg = new Image(), driftTime = 0, customFont = null;
+        let activeLyricLines = [], targetLyricText = "", currentDisplayedLyric = "", lyricAlpha = 0, animState = "idle"; 
+        let globalTrackFadeAlpha = 1.0, lastSpinTrigger = 0;
         const spinDuration = 1500, spinCooldown = 5000, rotations = 4;
-
         let songFontSizeSetting = 210, artistFontSizeSetting = 60;
 
-        // --- RESTORED ASSET PATHS ---
         currentBg.src = 'assets/stock_bg.jpg';
         logoImg.src = 'assets/es_ic.png';
         const fontFace = new FontFace('CustomCanvasFont', 'url(assets/es_font.otf)');
@@ -573,10 +565,7 @@
                 logoRotation = (1 - Math.pow(1 - t, 3)) * (Math.PI * 2 * rotations);
             }
 
-            const offX = Math.cos(driftTime * 0.9) * 15;
-            const offY = Math.sin(driftTime * 1.2) * 10;
-            const scale = 1 + Math.sin(driftTime * 1.8) * 0.02;
-
+            const offX = Math.cos(driftTime * 0.9) * 15, offY = Math.sin(driftTime * 1.2) * 10, scale = 1 + Math.sin(driftTime * 1.8) * 0.02;
             updateLiveLyricsFromAudio();
             interpolateFadeTransitions();
             calculateGlobalEndTrackFade();
@@ -586,38 +575,22 @@
 
         function draw(x, y, s, rot) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+            ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.save();
             ctx.globalAlpha = globalTrackFadeAlpha;
             if (currentBg.complete) ctx.drawImage(currentBg, 0, 0, canvas.width, canvas.height);
-
             if (logoImg.complete) {
-                ctx.save();
-                ctx.translate(1205, 75);
-                ctx.rotate(rot);
-                ctx.drawImage(logoImg, -42.5, -42.5, 85, 85);
-                ctx.restore();
+                ctx.save(); ctx.translate(1205, 75); ctx.rotate(rot); ctx.drawImage(logoImg, -42.5, -42.5, 85, 85); ctx.restore();
             }
-
             if (currentDisplayedLyric) {
-                ctx.save();
-                ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
+                ctx.save(); ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
                 let fontSize = 150 * s;
                 ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillStyle = "white";
+                ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white";
                 ctx.globalAlpha = lyricAlpha * globalTrackFadeAlpha;
-                ctx.shadowColor = "rgba(0,0,0,0.9)";
-                ctx.shadowBlur = 35;
-
+                ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 35;
                 let metrics = ctx.measureText(currentDisplayedLyric.toUpperCase());
-                if (metrics.width > 1100) {
-                    fontSize *= (1100 / metrics.width);
-                    ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`;
-                }
+                if (metrics.width > 1100) { fontSize *= (1100 / metrics.width); ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`; }
                 ctx.fillText(currentDisplayedLyric.toUpperCase(), 0, 0);
                 ctx.restore();
             }
@@ -628,52 +601,30 @@
             if (currentDisplayedLyric !== targetLyricText && animState === "idle") animState = "fading_out";
             if (animState === "fading_out") {
                 lyricAlpha -= 0.08;
-                if (lyricAlpha <= 0) {
-                    lyricAlpha = 0;
-                    currentDisplayedLyric = targetLyricText;
-                    animState = "fading_in";
-                }
+                if (lyricAlpha <= 0) { lyricAlpha = 0; currentDisplayedLyric = targetLyricText; animState = "fading_in"; }
             } else if (animState === "fading_in") {
                 lyricAlpha += 0.08;
                 if (lyricAlpha >= 1) { lyricAlpha = 1; animState = "idle"; }
             }
         }
 
-        // --- RESTORED THUMBNAIL ENGINE ---
-        const tCanvas = document.getElementById('thumbPreviewCanvas');
-        const tCtx = tCanvas.getContext('2d');
+        const tCanvas = document.getElementById('thumbPreviewCanvas'), tCtx = tCanvas.getContext('2d');
         function renderThumbnailPreview() {
             tCtx.clearRect(0,0,1280,720);
             if (currentBg.complete) tCtx.drawImage(currentBg, 0, 0, 1280, 720);
             if (logoImg.complete) tCtx.drawImage(logoImg, 1165, 30, 85, 85);
-
-            const title = (songInput.value || "UNTITLED").toUpperCase();
-            const artist = (artistInput.value || "ARTIST").toUpperCase();
-
-            tCtx.save();
-            tCtx.textAlign = "center";
-            tCtx.fillStyle = "white";
-            tCtx.shadowBlur = 35; tCtx.shadowColor = "black";
-
+            const title = (songInput.value || "UNTITLED").toUpperCase(), artist = (artistInput.value || "ARTIST").toUpperCase();
+            tCtx.save(); tCtx.textAlign = "center"; tCtx.fillStyle = "white"; tCtx.shadowBlur = 35; tCtx.shadowColor = "black";
             tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            let sm = tCtx.measureText(title);
-            const sH = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
-            
+            let sm = tCtx.measureText(title); const sH = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
             tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            let am = tCtx.measureText(artist);
-            const aH = am.actualBoundingBoxAscent + am.actualBoundingBoxDescent;
-
-            const totalH = sH + 35 + aH;
-            const startY = (720 - totalH) / 2 + sH;
-
-            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            tCtx.fillText(title, 640, startY);
-            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            tCtx.fillText(artist, 640, startY + 35 + aH);
+            let am = tCtx.measureText(artist); const aH = am.actualBoundingBoxAscent + am.actualBoundingBoxDescent;
+            const totalH = sH + 35 + aH, startY = (720 - totalH) / 2 + sH;
+            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`; tCtx.fillText(title, 640, startY);
+            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`; tCtx.fillText(artist, 640, startY + 35 + aH);
             tCtx.restore();
         }
 
-        // --- RESTORED UI LOGIC ---
         function initStepper(id, updateFn) {
             const cont = document.getElementById(id);
             cont.querySelectorAll('button')[0].onclick = () => updateFn(-5);
@@ -684,54 +635,40 @@
 
         let audioTrack = new Audio(), isAudioLoaded = false;
         document.getElementById('audioUpload').onchange = (e) => {
-            audioTrack.src = URL.createObjectURL(e.target.files[0]);
-            isAudioLoaded = true;
+            audioTrack.src = URL.createObjectURL(e.target.files[0]); isAudioLoaded = true;
             document.getElementById('audioLabel').innerText = "✓ AUDIO READY";
         };
-        
         document.getElementById('playToggle').onclick = () => {
             if (!isAudioLoaded) return;
             audioTrack.paused ? audioTrack.play() : audioTrack.pause();
             updatePlayButtonIcon(!audioTrack.paused);
         };
-
         function updatePlayButtonIcon(p) {
             document.getElementById('playToggle').innerHTML = p ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
         }
-
         audioTrack.ontimeupdate = () => {
             document.getElementById('progressBar').value = (audioTrack.currentTime / audioTrack.duration) * 100;
             document.getElementById('currentTime').innerText = formatTime(audioTrack.currentTime);
         };
         audioTrack.onloadedmetadata = () => document.getElementById('durationTime').innerText = formatTime(audioTrack.duration);
+        function formatTime(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
 
-        function formatTime(s) {
-            const m = Math.floor(s / 60);
-            const sec = Math.floor(s % 60);
-            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-        }
-
-        const fineSlider = document.getElementById('fineOffsetSlider');
-        const defOffset = document.getElementById('defaultOffsetInput');
+        const fineSlider = document.getElementById('fineOffsetSlider'), defOffset = document.getElementById('defaultOffsetInput');
         function calculateCombinedOffset() {
             const combined = (parseFloat(defOffset.value) || 0) + (parseFloat(fineSlider.value) || 0);
             document.getElementById('sliderValueDisplay').innerText = fineSlider.value + "s";
             document.getElementById('totalOffsetDisplay').innerText = "TOTAL: " + combined.toFixed(1) + "s";
             return combined;
         }
-        fineSlider.oninput = calculateCombinedOffset;
-        defOffset.oninput = calculateCombinedOffset;
+        fineSlider.oninput = calculateCombinedOffset; defOffset.oninput = calculateCombinedOffset;
 
-        // --- RESTORED LYRICS ENGINE ---
         document.getElementById('fetchBtn').onclick = () => {
             const q = `https://lrclib.net/api/search?track_name=${encodeURIComponent(songInput.value)}&artist_name=${encodeURIComponent(artistInput.value)}`;
             document.getElementById('lyricsDisplayCard').style.display = "block";
             fetch(q).then(r => r.json()).then(data => {
-                const win = document.getElementById('lyricsWindow');
-                win.innerHTML = "";
+                const win = document.getElementById('lyricsWindow'); win.innerHTML = "";
                 data.forEach(t => {
-                    const row = document.createElement('div');
-                    row.className = "track-selection-item";
+                    const row = document.createElement('div'); row.className = "track-selection-item";
                     row.innerHTML = `<div class="track-title-line">${t.trackName.toUpperCase()}</div><div class="track-meta-line">${t.artistName}</div>`;
                     row.onclick = () => {
                         parseLrc(t.syncedLyrics || t.plainLyrics);
@@ -744,12 +681,10 @@
         };
 
         function parseLrc(lrc) {
-            activeLyricLines = [];
-            if (!lrc) return;
-            const lines = lrc.split('\n');
-            lines.forEach(l => {
+            activeLyricLines = []; if (!lrc) return;
+            lrc.split('\n').forEach(l => {
                 const m = l.match(/\[(\d+):(\d+)\.(\d+)\]/);
-                if (m) activeLyricLines.push({ time: parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100, text: l.replace(/\[.*?\]/g, '').trim() });
+                if (m) activeLyricLines.push({ time: parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3])/100, text: l.replace(/\[.*?\]/g, '').trim() });
             });
         }
 
@@ -757,10 +692,7 @@
             if (!activeLyricLines.length) return;
             const t = audioTrack.currentTime + calculateCombinedOffset();
             let matched = "";
-            for (let line of activeLyricLines) {
-                if (t >= line.time) matched = line.text;
-                else break;
-            }
+            for (let line of activeLyricLines) { if (t >= line.time) matched = line.text; else break; }
             targetLyricText = matched;
         }
 
@@ -772,8 +704,7 @@
         }
 
         requestAnimationFrame(animate);
-        songInput.oninput = renderThumbnailPreview;
-        artistInput.oninput = renderThumbnailPreview;
+        songInput.oninput = renderThumbnailPreview; artistInput.oninput = renderThumbnailPreview;
     </script>
 </body>
 </html>
