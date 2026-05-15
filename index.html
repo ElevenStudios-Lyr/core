@@ -281,6 +281,7 @@
             100% { background-color: var(--accent); color: #000; opacity: 1; }
         }
 
+        .stepper-container { display: flex; justify-content: space-around; }
         .stepper {
             display: flex;
             align-items: center;
@@ -350,7 +351,6 @@
     <div class="workspace">
         <div class="preview-section">
             <canvas id="previewCanvas" width="1280" height="720"></canvas>
-            
             <div class="custom-player">
                 <button class="play-btn" id="playToggle">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>
@@ -464,11 +464,10 @@
     </div>
 
     <script>
-        // --- CONSTANT FRAME RATE RENDER ENGINE ---
+        // --- RESTORED FIXED FPS RECORDING ENGINE ---
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
-        let recordingTime = 0;
         let audioContextInstance = null;
         let mediaStreamDestinationNode = null;
 
@@ -477,16 +476,12 @@
             else stopRecording();
         }
 
-        async function startRecording() {
-            if (!isAudioLoaded) {
-                alert("Please upload an AUDIO file first.");
-                return;
-            }
-
+        function startRecording() {
+            if (!isAudioLoaded) return alert("Upload AUDIO first.");
             recordedChunks = [];
-            const chosenFPS = parseInt(document.getElementById('fpsSelect').value) || 30;
             
-            // Fixed-rate stream capture
+            const chosenFPS = parseInt(document.getElementById('fpsSelect').value);
+            // LOCK FPS: We request a specific frame rate from the canvas stream
             const videoStream = canvas.captureStream(chosenFPS);
             
             if (!audioContextInstance) {
@@ -497,27 +492,27 @@
                 source.connect(audioContextInstance.destination);
             }
             
-            const audioTrackFromNode = mediaStreamDestinationNode.stream.getAudioTracks()[0];
-            if (audioTrackFromNode) videoStream.addTrack(audioTrackFromNode);
+            const audioTrackNode = mediaStreamDestinationNode.stream.getAudioTracks()[0];
+            if (audioTrackNode) videoStream.addTrack(audioTrackNode);
 
-            const options = { 
-                mimeType: 'video/mp4;codecs=h264,aac',
-                videoBitsPerSecond: 8000000 // Higher bitrate for quality
+            // BITRATE LOCK: Forcing 8Mbps to prevent "Variable Frame Rate" dropouts
+            let options = { 
+                mimeType: 'video/mp4;codecs=h264,aac', 
+                videoBitsPerSecond: 8000000 
             };
             
-            // Standardizing for MP4 output
-            mediaRecorder = new MediaRecorder(videoStream, MediaRecorder.isTypeSupported(options.mimeType) ? options : { mimeType: 'video/webm;codecs=h264' });
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'video/webm;codecs=h264';
+            }
 
-            mediaRecorder.ondataavailable = (e) => {
-                if (e.data.size > 0) recordedChunks.push(e.data);
-            };
-
+            mediaRecorder = new MediaRecorder(videoStream, options);
+            mediaRecorder.ondataavailable = (e) => e.data.size > 0 && recordedChunks.push(e.data);
             mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `${songInput.value || 'render'}.mp4`;
+                a.download = `${songInput.value || 'ElevenStudios'}.mp4`;
                 a.click();
             };
 
@@ -525,7 +520,6 @@
             isRecording = true;
             document.getElementById('recordBtn').classList.add('recording-active');
             document.getElementById('recordBtn').innerText = "Stop";
-
             audioTrack.currentTime = 0;
             audioTrack.play();
             updatePlayButtonIcon(true);
@@ -540,7 +534,7 @@
             updatePlayButtonIcon(false);
         }
 
-        // --- PREVIEW & ANIMATION LOGIC ---
+        // --- RESTORED ORIGINAL ANIMATION ENGINE (Smooth Fades) ---
         const canvas = document.getElementById('previewCanvas');
         const ctx = canvas.getContext('2d');
         const songInput = document.getElementById('songTitle');
@@ -551,28 +545,21 @@
         let driftTime = 0;
         let customFont = null;
         let activeLyricLines = []; 
-        let targetLyricText = "";
+        let targetLyricText = "";     
         let currentDisplayedLyric = "";
         let lyricAlpha = 0;
         let animState = "idle"; 
         let globalTrackFadeAlpha = 1.0; 
-
         let lastSpinTrigger = 0;
-        const spinDuration = 1500; 
-        const spinCooldown = 5000; 
-        const rotations = 4;
+        const spinDuration = 1500, spinCooldown = 5000, rotations = 4;
 
-        let songFontSizeSetting = 210;   
-        let artistFontSizeSetting = 60;
+        let songFontSizeSetting = 210, artistFontSizeSetting = 60;
 
-        // Assets
+        // --- RESTORED ASSET PATHS ---
         currentBg.src = 'assets/stock_bg.jpg';
         logoImg.src = 'assets/es_ic.png';
         const fontFace = new FontFace('CustomCanvasFont', 'url(assets/es_font.otf)');
-        fontFace.load().then(f => {
-            document.fonts.add(f);
-            customFont = "CustomCanvasFont";
-        });
+        fontFace.load().then(f => { document.fonts.add(f); customFont = "CustomCanvasFont"; renderThumbnailPreview(); });
 
         function animate(timestamp) {
             driftTime += 0.025;
@@ -594,125 +581,148 @@
             interpolateFadeTransitions();
             calculateGlobalEndTrackFade();
             draw(offX, offY, scale, logoRotation);
-            
             requestAnimationFrame(animate);
         }
 
         function draw(x, y, s, rot) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
             ctx.globalAlpha = globalTrackFadeAlpha;
             if (currentBg.complete) ctx.drawImage(currentBg, 0, 0, canvas.width, canvas.height);
 
-            // Logo
             if (logoImg.complete) {
                 ctx.save();
                 ctx.translate(1205, 75);
                 ctx.rotate(rot);
-                ctx.drawImage(logoImg, -42, -42, 85, 85);
+                ctx.drawImage(logoImg, -42.5, -42.5, 85, 85);
                 ctx.restore();
             }
 
-            // Lyrics
             if (currentDisplayedLyric) {
                 ctx.save();
                 ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
-                ctx.font = `${150 * s}px ${customFont || 'sans-serif'}`;
+                let fontSize = 150 * s;
+                ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
                 ctx.fillStyle = "white";
                 ctx.globalAlpha = lyricAlpha * globalTrackFadeAlpha;
-                ctx.shadowColor = "black";
-                ctx.shadowBlur = 30;
-                
-                // Text width safety
+                ctx.shadowColor = "rgba(0,0,0,0.9)";
+                ctx.shadowBlur = 35;
+
                 let metrics = ctx.measureText(currentDisplayedLyric.toUpperCase());
                 if (metrics.width > 1100) {
-                    ctx.font = `${(150 * s) * (1100 / metrics.width)}px ${customFont || 'sans-serif'}`;
+                    fontSize *= (1100 / metrics.width);
+                    ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`;
                 }
-                
                 ctx.fillText(currentDisplayedLyric.toUpperCase(), 0, 0);
                 ctx.restore();
             }
-        }
-
-        // Logic Helpers
-        function updateLiveLyricsFromAudio() {
-            if (!activeLyricLines.length) return;
-            const offset = calculateCombinedOffset();
-            const time = audioTrack.currentTime + offset;
-            let matched = "";
-            for (let line of activeLyricLines) {
-                if (time >= line.time) matched = line.text;
-                else break;
-            }
-            targetLyricText = matched;
+            ctx.restore();
         }
 
         function interpolateFadeTransitions() {
             if (currentDisplayedLyric !== targetLyricText && animState === "idle") animState = "fading_out";
             if (animState === "fading_out") {
-                lyricAlpha -= 0.1;
+                lyricAlpha -= 0.08;
                 if (lyricAlpha <= 0) {
+                    lyricAlpha = 0;
                     currentDisplayedLyric = targetLyricText;
                     animState = "fading_in";
                 }
             } else if (animState === "fading_in") {
-                lyricAlpha += 0.1;
-                if (lyricAlpha >= 1) animState = "idle";
+                lyricAlpha += 0.08;
+                if (lyricAlpha >= 1) { lyricAlpha = 1; animState = "idle"; }
             }
         }
 
-        function calculateGlobalEndTrackFade() {
-            if (audioTrack.duration) {
-                const rem = audioTrack.duration - audioTrack.currentTime;
-                globalTrackFadeAlpha = rem < 3 ? rem / 3 : 1;
-            }
+        // --- RESTORED THUMBNAIL ENGINE ---
+        const tCanvas = document.getElementById('thumbPreviewCanvas');
+        const tCtx = tCanvas.getContext('2d');
+        function renderThumbnailPreview() {
+            tCtx.clearRect(0,0,1280,720);
+            if (currentBg.complete) tCtx.drawImage(currentBg, 0, 0, 1280, 720);
+            if (logoImg.complete) tCtx.drawImage(logoImg, 1165, 30, 85, 85);
+
+            const title = (songInput.value || "UNTITLED").toUpperCase();
+            const artist = (artistInput.value || "ARTIST").toUpperCase();
+
+            tCtx.save();
+            tCtx.textAlign = "center";
+            tCtx.fillStyle = "white";
+            tCtx.shadowBlur = 35; tCtx.shadowColor = "black";
+
+            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`;
+            let sm = tCtx.measureText(title);
+            const sH = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
+            
+            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`;
+            let am = tCtx.measureText(artist);
+            const aH = am.actualBoundingBoxAscent + am.actualBoundingBoxDescent;
+
+            const totalH = sH + 35 + aH;
+            const startY = (720 - totalH) / 2 + sH;
+
+            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`;
+            tCtx.fillText(title, 640, startY);
+            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`;
+            tCtx.fillText(artist, 640, startY + 35 + aH);
+            tCtx.restore();
         }
 
-        // Steppers & UI
-        function initStepper(id, valRef, step, displayId) {
-            const el = document.getElementById(id);
-            el.children[1].onclick = () => { valRef.v -= step; document.getElementById(displayId).innerText = valRef.v; renderThumbnailPreview(); };
-            el.children[3].onclick = () => { valRef.v += step; document.getElementById(displayId).innerText = valRef.v; renderThumbnailPreview(); };
+        // --- RESTORED UI LOGIC ---
+        function initStepper(id, updateFn) {
+            const cont = document.getElementById(id);
+            cont.querySelectorAll('button')[0].onclick = () => updateFn(-5);
+            cont.querySelectorAll('button')[1].onclick = () => updateFn(5);
         }
-        let sSize = { v: 210 }, aSize = { v: 60 };
-        initStepper('songStepper', sSize, 5, 'songSizeVal');
-        initStepper('artistStepper', aSize, 5, 'artistSizeVal');
+        initStepper('songStepper', (a) => { songFontSizeSetting += a; document.getElementById('songSizeVal').innerText = songFontSizeSetting; renderThumbnailPreview(); });
+        initStepper('artistStepper', (a) => { artistFontSizeSetting += a; document.getElementById('artistSizeVal').innerText = artistFontSizeSetting; renderThumbnailPreview(); });
 
-        // Offset Engine
-        const defaultOffsetInput = document.getElementById('defaultOffsetInput');
-        const fineOffsetSlider = document.getElementById('fineOffsetSlider');
-        function calculateCombinedOffset() {
-            const total = (parseFloat(defaultOffsetInput.value) || 0) + (parseFloat(fineOffsetSlider.value) || 0);
-            document.getElementById('sliderValueDisplay').innerText = fineOffsetSlider.value + "s";
-            document.getElementById('totalOffsetDisplay').innerText = "TOT: " + total.toFixed(1) + "s";
-            return total;
-        }
-        fineOffsetSlider.oninput = calculateCombinedOffset;
-        defaultOffsetInput.oninput = calculateCombinedOffset;
-
-        // Player Controls
-        let audioTrack = new Audio();
-        let isAudioLoaded = false;
+        let audioTrack = new Audio(), isAudioLoaded = false;
         document.getElementById('audioUpload').onchange = (e) => {
             audioTrack.src = URL.createObjectURL(e.target.files[0]);
             isAudioLoaded = true;
-            document.getElementById('audioLabel').innerText = "AUDIO READY";
+            document.getElementById('audioLabel').innerText = "✓ AUDIO READY";
         };
+        
         document.getElementById('playToggle').onclick = () => {
-            if (audioTrack.paused) audioTrack.play(); else audioTrack.pause();
+            if (!isAudioLoaded) return;
+            audioTrack.paused ? audioTrack.play() : audioTrack.pause();
             updatePlayButtonIcon(!audioTrack.paused);
         };
-        function updatePlayButtonIcon(play) {
-            document.getElementById('playToggle').innerHTML = play ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
-        }
-        audioTrack.ontimeupdate = () => {
-            const prog = (audioTrack.currentTime / audioTrack.duration) * 100;
-            document.getElementById('progressBar').value = prog;
-            document.getElementById('currentTime').innerText = Math.floor(audioTrack.currentTime / 60) + ":" + String(Math.floor(audioTrack.currentTime % 60)).padStart(2, '0');
-        };
 
-        // Fetch Lyrics
+        function updatePlayButtonIcon(p) {
+            document.getElementById('playToggle').innerHTML = p ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
+        }
+
+        audioTrack.ontimeupdate = () => {
+            document.getElementById('progressBar').value = (audioTrack.currentTime / audioTrack.duration) * 100;
+            document.getElementById('currentTime').innerText = formatTime(audioTrack.currentTime);
+        };
+        audioTrack.onloadedmetadata = () => document.getElementById('durationTime').innerText = formatTime(audioTrack.duration);
+
+        function formatTime(s) {
+            const m = Math.floor(s / 60);
+            const sec = Math.floor(s % 60);
+            return `${m}:${sec < 10 ? '0' : ''}${sec}`;
+        }
+
+        const fineSlider = document.getElementById('fineOffsetSlider');
+        const defOffset = document.getElementById('defaultOffsetInput');
+        function calculateCombinedOffset() {
+            const combined = (parseFloat(defOffset.value) || 0) + (parseFloat(fineSlider.value) || 0);
+            document.getElementById('sliderValueDisplay').innerText = fineSlider.value + "s";
+            document.getElementById('totalOffsetDisplay').innerText = "TOTAL: " + combined.toFixed(1) + "s";
+            return combined;
+        }
+        fineSlider.oninput = calculateCombinedOffset;
+        defOffset.oninput = calculateCombinedOffset;
+
+        // --- RESTORED LYRICS ENGINE ---
         document.getElementById('fetchBtn').onclick = () => {
             const q = `https://lrclib.net/api/search?track_name=${encodeURIComponent(songInput.value)}&artist_name=${encodeURIComponent(artistInput.value)}`;
             document.getElementById('lyricsDisplayCard').style.display = "block";
@@ -720,15 +730,15 @@
                 const win = document.getElementById('lyricsWindow');
                 win.innerHTML = "";
                 data.forEach(t => {
-                    const d = document.createElement('div');
-                    d.className = "track-selection-item";
-                    d.innerHTML = `<strong>${t.trackName}</strong><br><small>${t.artistName}</small>`;
-                    d.onclick = () => {
+                    const row = document.createElement('div');
+                    row.className = "track-selection-item";
+                    row.innerHTML = `<div class="track-title-line">${t.trackName.toUpperCase()}</div><div class="track-meta-line">${t.artistName}</div>`;
+                    row.onclick = () => {
                         parseLrc(t.syncedLyrics || t.plainLyrics);
                         document.querySelectorAll('.track-selection-item').forEach(i => i.classList.remove('selected-track'));
-                        d.classList.add('selected-track');
+                        row.classList.add('selected-track');
                     };
-                    win.appendChild(d);
+                    win.appendChild(row);
                 });
             });
         };
@@ -739,33 +749,31 @@
             const lines = lrc.split('\n');
             lines.forEach(l => {
                 const m = l.match(/\[(\d+):(\d+)\.(\d+)\]/);
-                if (m) {
-                    activeLyricLines.push({ time: parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100, text: l.replace(/\[.*?\]/g, '').trim() });
-                }
+                if (m) activeLyricLines.push({ time: parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100, text: l.replace(/\[.*?\]/g, '').trim() });
             });
         }
 
-        // Thumbnail Preview
-        const tCanvas = document.getElementById('thumbPreviewCanvas');
-        const tCtx = tCanvas.getContext('2d');
-        function renderThumbnailPreview() {
-            tCtx.drawImage(currentBg, 0, 0, 1280, 720);
-            tCtx.font = `${sSize.v}px ${customFont || 'sans-serif'}`;
-            tCtx.fillStyle = "white";
-            tCtx.textAlign = "center";
-            tCtx.fillText((songInput.value || "SONG").toUpperCase(), 640, 360);
-            tCtx.font = `${aSize.v}px ${customFont || 'sans-serif'}`;
-            tCtx.fillText((artistInput.value || "ARTIST").toUpperCase(), 640, 430);
+        function updateLiveLyricsFromAudio() {
+            if (!activeLyricLines.length) return;
+            const t = audioTrack.currentTime + calculateCombinedOffset();
+            let matched = "";
+            for (let line of activeLyricLines) {
+                if (t >= line.time) matched = line.text;
+                else break;
+            }
+            targetLyricText = matched;
         }
-        document.getElementById('thumbBtn').onclick = () => {
-            renderThumbnailPreview();
-            const link = document.createElement('a');
-            link.download = 'thumb.png';
-            link.href = tCanvas.toDataURL();
-            link.click();
-        };
+
+        function calculateGlobalEndTrackFade() {
+            if (audioTrack.duration) {
+                const rem = audioTrack.duration - audioTrack.currentTime;
+                globalTrackFadeAlpha = rem < 3 ? rem / 3 : 1.0;
+            }
+        }
 
         requestAnimationFrame(animate);
+        songInput.oninput = renderThumbnailPreview;
+        artistInput.oninput = renderThumbnailPreview;
     </script>
 </body>
 </html>
