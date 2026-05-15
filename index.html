@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eleven Studios | Dashboard Pro</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
 
         :root {
             --bg: #000000;
@@ -66,7 +66,7 @@
             background: #000;
             border-radius: 12px;
             display: block;
-            border: 1px solid var(--accent);
+            border: 1px solid var(--border);
         }
 
         .custom-player {
@@ -92,7 +92,6 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            box-shadow: 0 0 10px var(--accent);
         }
 
         .progress-container {
@@ -100,19 +99,16 @@
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding-top: 8px;
         }
 
         input[type="range"] {
             -webkit-appearance: none;
             width: 100%;
             background: transparent;
-            margin: 0;
             cursor: pointer;
         }
 
         input[type="range"]::-webkit-slider-runnable-track {
-            width: 100%;
             height: 4px;
             background: #333;
             border-radius: 2px;
@@ -125,7 +121,6 @@
             border-radius: 50%;
             background: var(--accent);
             margin-top: -4px;
-            box-shadow: 0 0 8px var(--accent);
         }
 
         .time-info {
@@ -152,7 +147,6 @@
             letter-spacing: 1.5px;
             margin-bottom: 8px;
             display: block;
-            text-shadow: 0 0 5px var(--glow);
         }
 
         .grid-2 {
@@ -171,62 +165,6 @@
             box-sizing: border-box;
             outline: none;
             font-size: 13px;
-        }
-
-        select {
-            cursor: pointer;
-            appearance: none;
-            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='white'><path d='M0 3l5 5 5-5z'/></svg>");
-            background-repeat: no-repeat;
-            background-position: calc(100% - 12px) center;
-        }
-
-        .offset-controls-wrapper {
-            display: grid;
-            grid-template-columns: 160px 1fr;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .slider-indicator-container {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .slider-row-layout {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .badge-layout-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .total-offset-badge {
-            font-family: monospace;
-            font-size: 11px;
-            padding: 5px 8px;
-            border-radius: 4px;
-            min-width: 75px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        .badge-slider-val {
-            background: #111;
-            color: var(--text-dim);
-            border: 1px solid #222;
-        }
-
-        .badge-master-total {
-            background: #161616;
-            color: var(--accent);
-            border: 1px solid #333;
-            font-weight: 700;
-            box-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
         }
 
         .asset-grid {
@@ -267,18 +205,11 @@
             border: none;
             background: var(--accent);
             color: #000;
-            box-shadow: 0 0 12px var(--glow);
-            transition: all 0.3s ease;
         }
 
         .recording-active {
-            animation: slowFadeReverse 2s infinite ease-in-out;
-        }
-
-        @keyframes slowFadeReverse {
-            0% { background-color: var(--accent); color: #000; opacity: 1; }
-            50% { background-color: #000; color: var(--accent); box-shadow: inset 0 0 15px var(--glow), 0 0 5px var(--glow); opacity: 0.8; }
-            100% { background-color: var(--accent); color: #000; opacity: 1; }
+            background: #ff0000 !important;
+            color: #fff !important;
         }
 
         .stepper {
@@ -302,7 +233,7 @@
             font-weight: bold;
         }
 
-        .val { color: var(--accent); font-weight: 800; font-family: monospace; text-shadow: 0 0 8px var(--glow); }
+        .val { color: var(--accent); font-weight: 800; font-family: monospace; }
 
         #thumbPreviewCanvas {
             width: 240px;
@@ -311,7 +242,6 @@
             background: #000;
             display: block;
             margin: 10px auto 0;
-            box-shadow: 0 0 10px var(--glow);
         }
 
         .lyrics-container {
@@ -330,15 +260,19 @@
             background: var(--panel-light);
             margin-bottom: 6px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: left;
         }
 
-        .track-selection-item:hover { border-color: #555; background: #141414; }
-        .track-selection-item.selected-track { border-color: var(--accent) !important; background: #1a1a1a !important; box-shadow: 0 0 10px rgba(255, 255, 255, 0.15); }
-        .track-title-line { font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
-        .track-meta-line { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
-        .length-badge { font-size: 10px; font-family: monospace; background: #222; color: var(--accent); padding: 2px 6px; border-radius: 4px; font-weight: normal; }
+        .track-selection-item:hover { border-color: #555; }
+        .track-selection-item.selected-track { border-color: var(--accent) !important; }
+        .track-title-line { font-size: 13px; font-weight: 700; color: #fff; }
+        .track-meta-line { font-size: 11px; color: var(--text-dim); }
+
+        .offset-controls-wrapper {
+            display: grid;
+            grid-template-columns: 160px 1fr;
+            gap: 20px;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -366,32 +300,17 @@
 
         <div class="card">
             <div class="grid-2">
-                <div>
-                    <span class="tag">Song Title</span>
-                    <input type="text" id="songTitle" placeholder="Untitled">
-                </div>
-                <div>
-                    <span class="tag">Artist Name</span>
-                    <input type="text" id="artistName" placeholder="Untitled">
-                </div>
+                <div><span class="tag">Song Title</span><input type="text" id="songTitle" placeholder="Untitled"></div>
+                <div><span class="tag">Artist Name</span><input type="text" id="artistName" placeholder="Untitled"></div>
             </div>
         </div>
 
         <div class="card">
             <span class="tag">Upload Assets</span>
             <div class="asset-grid">
-                <div class="file-wrapper">
-                    <label for="audioUpload" class="custom-file-btn" id="audioLabel">AUDIO</label>
-                    <input type="file" id="audioUpload" accept="audio/*">
-                </div>
-                <div class="file-wrapper">
-                    <label for="bgUpload" class="custom-file-btn" id="bgLabel">BACKGROUND</label>
-                    <input type="file" id="bgUpload" accept="image/*">
-                </div>
-                <div class="file-wrapper">
-                    <label for="fontUpload" class="custom-file-btn" id="fontLabel">FONT</label>
-                    <input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2">
-                </div>
+                <div class="file-wrapper"><label for="audioUpload" class="custom-file-btn" id="audioLabel">AUDIO</label><input type="file" id="audioUpload" accept="audio/*"></div>
+                <div class="file-wrapper"><label for="bgUpload" class="custom-file-btn" id="bgLabel">BACKGROUND</label><input type="file" id="bgUpload" accept="image/*"></div>
+                <div class="file-wrapper"><label for="fontUpload" class="custom-file-btn" id="fontLabel">FONT</label><input type="file" id="fontUpload" accept=".ttf,.otf,.woff,.woff2"></div>
             </div>
         </div>
 
@@ -399,32 +318,23 @@
             <span class="tag">Offset Layout Engine</span>
             <div class="offset-controls-wrapper">
                 <div>
-                    <span class="tag" style="color: var(--text-dim); margin-bottom: 4px;">Default Offset</span>
+                    <span class="tag">Default Offset</span>
                     <input type="number" id="defaultOffsetInput" value="0.0" step="0.1">
                 </div>
                 <div>
-                    <div class="slider-indicator-container">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span class="tag" style="color: var(--text-dim); margin:0;">Fine Adjustment Slider</span>
-                            <div class="badge-layout-group">
-                                <div class="total-offset-badge badge-slider-val" id="sliderValueDisplay">0.0s</div>
-                                <div class="total-offset-badge badge-master-total" id="totalOffsetDisplay">TOTAL: 0.0s</div>
-                            </div>
-                        </div>
-                        <div class="slider-row-layout">
-                            <input type="range" id="fineOffsetSlider" min="-5" max="5" step="0.1" value="0">
-                        </div>
-                    </div>
+                    <span class="tag">Fine Adjust: <span id="sliderValueDisplay">0.0s</span></span>
+                    <input type="range" id="fineOffsetSlider" min="-5" max="5" step="0.1" value="0">
+                    <div id="totalOffsetDisplay" style="font-size: 11px; color: var(--accent); margin-top: 5px;">TOTAL: 0.0s</div>
                 </div>
             </div>
         </div>
 
         <div class="card">
-            <span class="tag">FPS Engine Control</span>
+            <span class="tag">FPS Control</span>
             <select id="fpsSelect">
-                <option value="24">24 FPS (Cinematic)</option>
-                <option value="30" selected>30 FPS (Standard Default)</option>
-                <option value="60">60 FPS (Ultra Smooth)</option>
+                <option value="24">24 FPS</option>
+                <option value="30" selected>30 FPS</option>
+                <option value="60">60 FPS</option>
             </select>
         </div>
 
@@ -442,225 +352,216 @@
         <div class="card">
             <div class="grid-2">
                 <div class="stepper" id="songStepper" style="justify-content: space-between;">
-                    <span class="tag" style="margin:0; font-size: 8px;">Song Size</span>
-                    <button class="step-btn">−</button>
-                    <span class="val" id="songSizeVal">210</span>
-                    <button class="step-btn">+</button>
+                    <span class="tag" style="margin:0;">Song Size</span>
+                    <button class="step-btn">−</button><span class="val" id="songSizeVal">210</span><button class="step-btn">+</button>
                 </div>
                 <div class="stepper" id="artistStepper" style="justify-content: space-between;">
-                    <span class="tag" style="margin:0; font-size: 8px;">Artist Size</span>
-                    <button class="step-btn">−</button>
-                    <span class="val" id="artistSizeVal">60</span>
-                    <button class="step-btn">+</button>
+                    <span class="tag" style="margin:0;">Artist Size</span>
+                    <button class="step-btn">−</button><span class="val" id="artistSizeVal">60</span><button class="step-btn">+</button>
                 </div>
             </div>
         </div>
 
         <div class="card" id="lyricsDisplayCard" style="display: none;">
-            <span class="tag" id="resultsHeaderTag">Select Track from LRCLIB Database</span>
-            <div id="lyricsWindow" class="lyrics-container">Searching tracks...</div>
+            <span class="tag">Select Track</span>
+            <div id="lyricsWindow" class="lyrics-container"></div>
         </div>
     </div>
 
     <script>
-        // --- REVERTED STABLE RECORDING ENGINE WITH FPS FIX ---
-        let mediaRecorder = null;
-        let recordedChunks = [];
-        let isRecording = false;
-        let audioContextInstance = null;
-        let mediaStreamDestinationNode = null;
-
-        function toggleRecord() {
-            if (!isRecording) startRecording();
-            else stopRecording();
-        }
-
-        function startRecording() {
-            if (!isAudioLoaded) return alert("Upload AUDIO first.");
-            recordedChunks = [];
-            
-            const chosenFPS = parseInt(document.getElementById('fpsSelect').value);
-            
-            // FIX: If user chose 30, we request a stream at chosenFPS but tell MediaRecorder 
-            // to prioritize the processing. If it still lags, try recording at 60 then 
-            // converting elsewhere, but this should fix the jitter.
-            const videoStream = canvas.captureStream(chosenFPS);
-            
-            if (!audioContextInstance) {
-                audioContextInstance = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContextInstance.createMediaElementSource(audioTrack);
-                mediaStreamDestinationNode = audioContextInstance.createMediaStreamDestination();
-                source.connect(mediaStreamDestinationNode);
-                source.connect(audioContextInstance.destination);
-            }
-            
-            const audioTrackNode = mediaStreamDestinationNode.stream.getAudioTracks()[0];
-            if (audioTrackNode) videoStream.addTrack(audioTrackNode);
-
-            // Bitrate set to 10Mbps for high quality h264
-            let options = { 
-                mimeType: 'video/mp4;codecs=h264,aac', 
-                videoBitsPerSecond: 10000000 
-            };
-            
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options.mimeType = 'video/webm;codecs=h264';
-            }
-
-            mediaRecorder = new MediaRecorder(videoStream, options);
-            mediaRecorder.ondataavailable = (e) => e.data.size > 0 && recordedChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunks, { type: 'video/mp4' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${songInput.value || 'ElevenStudios'}.mp4`;
-                a.click();
-            };
-
-            mediaRecorder.start();
-            isRecording = true;
-            document.getElementById('recordBtn').classList.add('recording-active');
-            document.getElementById('recordBtn').innerText = "Stop";
-            audioTrack.currentTime = 0;
-            audioTrack.play();
-            updatePlayButtonIcon(true);
-        }
-
-        function stopRecording() {
-            if (mediaRecorder) mediaRecorder.stop();
-            isRecording = false;
-            document.getElementById('recordBtn').classList.remove('recording-active');
-            document.getElementById('recordBtn').innerText = "Record";
-            audioTrack.pause();
-            updatePlayButtonIcon(false);
-        }
-
-        // --- ANIMATION & UI (FULLY RESTORED) ---
-        const canvas = document.getElementById('previewCanvas');
-        const ctx = canvas.getContext('2d');
-        const songInput = document.getElementById('songTitle');
-        const artistInput = document.getElementById('artistName');
-        
-        let currentBg = new Image(), logoImg = new Image(), driftTime = 0, customFont = null;
-        let activeLyricLines = [], targetLyricText = "", currentDisplayedLyric = "", lyricAlpha = 0, animState = "idle"; 
-        let globalTrackFadeAlpha = 1.0, lastSpinTrigger = 0;
-        const spinDuration = 1500, spinCooldown = 5000, rotations = 4;
-        let songFontSizeSetting = 210, artistFontSizeSetting = 60;
+        // --- ASSETS & STATE ---
+        const canvas = document.getElementById('previewCanvas'), ctx = canvas.getContext('2d');
+        const songInput = document.getElementById('songTitle'), artistInput = document.getElementById('artistName');
+        let currentBg = new Image(), logoImg = new Image(), customFont = "sans-serif";
+        let activeLyricLines = [], targetLyricText = "", currentDisplayedLyric = "", lyricAlpha = 0, animState = "idle";
+        let songFontSizeSetting = 210, artistFontSizeSetting = 60, driftTime = 0, lastSpinTrigger = 0;
+        let audioTrack = new Audio(), isAudioLoaded = false;
 
         currentBg.src = 'assets/stock_bg.jpg';
         logoImg.src = 'assets/es_ic.png';
-        const fontFace = new FontFace('CustomCanvasFont', 'url(assets/es_font.otf)');
-        fontFace.load().then(f => { document.fonts.add(f); customFont = "CustomCanvasFont"; renderThumbnailPreview(); });
 
+        document.getElementById('bgUpload').onchange = (e) => {
+            currentBg.src = URL.createObjectURL(e.target.files[0]);
+            currentBg.onload = renderThumbnailPreview;
+        };
+
+        document.getElementById('fontUpload').onchange = (e) => {
+            const font = new FontFace('CustomCanvasFont', `url(${URL.createObjectURL(e.target.files[0])})`);
+            font.load().then(f => { document.fonts.add(f); customFont = "CustomCanvasFont"; renderThumbnailPreview(); });
+        };
+
+        // --- ANIMATION LOOP (SMOOTHING) ---
         function animate(timestamp) {
             driftTime += 0.025;
             if (!lastSpinTrigger) lastSpinTrigger = timestamp;
             const elapsed = timestamp - lastSpinTrigger;
-            if (elapsed >= spinCooldown) lastSpinTrigger = timestamp;
+            if (elapsed >= 5000) lastSpinTrigger = timestamp;
 
-            let logoRotation = 0;
-            if (elapsed < spinDuration) {
-                const t = elapsed / spinDuration;
-                logoRotation = (1 - Math.pow(1 - t, 3)) * (Math.PI * 2 * rotations);
+            let logoRot = 0;
+            if (elapsed < 1500) {
+                const t = elapsed / 1500;
+                logoRot = (1 - Math.pow(1 - t, 3)) * (Math.PI * 8);
             }
 
-            const offX = Math.cos(driftTime * 0.9) * 15, offY = Math.sin(driftTime * 1.2) * 10, scale = 1 + Math.sin(driftTime * 1.8) * 0.02;
-            updateLiveLyricsFromAudio();
-            interpolateFadeTransitions();
-            calculateGlobalEndTrackFade();
-            draw(offX, offY, scale, logoRotation);
+            const offX = Math.cos(driftTime * 0.9) * 15;
+            const offY = Math.sin(driftTime * 1.2) * 10;
+            const scale = 1 + Math.sin(driftTime * 1.8) * 0.02;
+
+            updateLyrics();
+            handleTransitions();
+            draw(offX, offY, scale, logoRot);
             requestAnimationFrame(animate);
         }
 
         function draw(x, y, s, rot) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.globalAlpha = globalTrackFadeAlpha;
-            if (currentBg.complete) ctx.drawImage(currentBg, 0, 0, canvas.width, canvas.height);
-            if (logoImg.complete) {
-                ctx.save(); ctx.translate(1205, 75); ctx.rotate(rot); ctx.drawImage(logoImg, -42.5, -42.5, 85, 85); ctx.restore();
+            
+            // Background & Fade-out logic
+            let globalFade = 1.0;
+            if (audioTrack.duration) {
+                const remaining = audioTrack.duration - audioTrack.currentTime;
+                if (remaining < 3) globalFade = remaining / 3;
             }
+            ctx.globalAlpha = globalFade;
+
+            if (currentBg.complete) ctx.drawImage(currentBg, 0, 0, 1280, 720);
+
+            // Logo
+            if (logoImg.complete) {
+                ctx.save(); ctx.translate(1205, 75); ctx.rotate(rot);
+                ctx.drawImage(logoImg, -42.5, -42.5, 85, 85); ctx.restore();
+            }
+
+            // LYRICS (Optimized for smoothness)
             if (currentDisplayedLyric) {
-                ctx.save(); ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
+                ctx.save();
+                ctx.translate(640 + x, 360 + y);
+                // Use globalAlpha for the transition fade to prevent flicker
+                ctx.globalAlpha = lyricAlpha * globalFade;
+                
                 let fontSize = 150 * s;
-                ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`;
+                ctx.font = `${fontSize}px ${customFont}`;
                 ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white";
-                ctx.globalAlpha = lyricAlpha * globalTrackFadeAlpha;
-                ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 35;
-                let metrics = ctx.measureText(currentDisplayedLyric.toUpperCase());
-                if (metrics.width > 1100) { fontSize *= (1100 / metrics.width); ctx.font = `${fontSize}px ${customFont || 'sans-serif'}`; }
-                ctx.fillText(currentDisplayedLyric.toUpperCase(), 0, 0);
+                
+                // Reduced shadow complexity for performance
+                ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 30;
+
+                let text = currentDisplayedLyric.toUpperCase();
+                let metrics = ctx.measureText(text);
+                if (metrics.width > 1100) {
+                    fontSize *= (1100 / metrics.width);
+                    ctx.font = `${fontSize}px ${customFont}`;
+                }
+                ctx.fillText(text, 0, 0);
                 ctx.restore();
             }
-            ctx.restore();
+            ctx.globalAlpha = 1.0;
         }
 
-        function interpolateFadeTransitions() {
+        function handleTransitions() {
             if (currentDisplayedLyric !== targetLyricText && animState === "idle") animState = "fading_out";
+            
             if (animState === "fading_out") {
-                lyricAlpha -= 0.08;
-                if (lyricAlpha <= 0) { lyricAlpha = 0; currentDisplayedLyric = targetLyricText; animState = "fading_in"; }
+                lyricAlpha -= 0.12; // Faster, snappier fade
+                if (lyricAlpha <= 0) {
+                    lyricAlpha = 0;
+                    currentDisplayedLyric = targetLyricText;
+                    animState = "fading_in";
+                }
             } else if (animState === "fading_in") {
-                lyricAlpha += 0.08;
+                lyricAlpha += 0.12;
                 if (lyricAlpha >= 1) { lyricAlpha = 1; animState = "idle"; }
             }
         }
 
+        // --- THUMBNAIL ENGINE (FIXED) ---
         const tCanvas = document.getElementById('thumbPreviewCanvas'), tCtx = tCanvas.getContext('2d');
         function renderThumbnailPreview() {
             tCtx.clearRect(0,0,1280,720);
             if (currentBg.complete) tCtx.drawImage(currentBg, 0, 0, 1280, 720);
             if (logoImg.complete) tCtx.drawImage(logoImg, 1165, 30, 85, 85);
-            const title = (songInput.value || "UNTITLED").toUpperCase(), artist = (artistInput.value || "ARTIST").toUpperCase();
-            tCtx.save(); tCtx.textAlign = "center"; tCtx.fillStyle = "white"; tCtx.shadowBlur = 35; tCtx.shadowColor = "black";
-            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            let sm = tCtx.measureText(title); const sH = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
-            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`;
-            let am = tCtx.measureText(artist); const aH = am.actualBoundingBoxAscent + am.actualBoundingBoxDescent;
-            const totalH = sH + 35 + aH, startY = (720 - totalH) / 2 + sH;
-            tCtx.font = `${songFontSizeSetting}px ${customFont || 'sans-serif'}`; tCtx.fillText(title, 640, startY);
-            tCtx.font = `${artistFontSizeSetting}px ${customFont || 'sans-serif'}`; tCtx.fillText(artist, 640, startY + 35 + aH);
+
+            const title = (songInput.value || "SONG TITLE").toUpperCase();
+            const artist = (artistInput.value || "ARTIST NAME").toUpperCase();
+
+            tCtx.save();
+            tCtx.textAlign = "center"; tCtx.fillStyle = "white";
+            tCtx.shadowBlur = 35; tCtx.shadowColor = "black";
+
+            // Calculate heights for perfect centering
+            tCtx.font = `${songFontSizeSetting}px ${customFont}`;
+            let sm = tCtx.measureText(title); 
+            let sH = sm.actualBoundingBoxAscent + sm.actualBoundingBoxDescent;
+            
+            tCtx.font = `${artistFontSizeSetting}px ${customFont}`;
+            let am = tCtx.measureText(artist); 
+            let aH = am.actualBoundingBoxAscent + am.actualBoundingBoxDescent;
+
+            const totalH = sH + 40 + aH;
+            const startY = (720 - totalH) / 2 + sH;
+
+            tCtx.font = `${songFontSizeSetting}px ${customFont}`;
+            tCtx.fillText(title, 640, startY);
+            tCtx.font = `${artistFontSizeSetting}px ${customFont}`;
+            tCtx.fillText(artist, 640, startY + 40 + aH);
             tCtx.restore();
         }
 
-        function initStepper(id, updateFn) {
-            const cont = document.getElementById(id);
-            cont.querySelectorAll('button')[0].onclick = () => updateFn(-5);
-            cont.querySelectorAll('button')[1].onclick = () => updateFn(5);
-        }
-        initStepper('songStepper', (a) => { songFontSizeSetting += a; document.getElementById('songSizeVal').innerText = songFontSizeSetting; renderThumbnailPreview(); });
-        initStepper('artistStepper', (a) => { artistFontSizeSetting += a; document.getElementById('artistSizeVal').innerText = artistFontSizeSetting; renderThumbnailPreview(); });
+        // --- RECORDING ---
+        let mediaRecorder = null, recordedChunks = [];
+        function toggleRecord() {
+            if (!isRecording) {
+                if (!isAudioLoaded) return alert("Select audio first");
+                recordedChunks = [];
+                const stream = canvas.captureStream(parseInt(document.getElementById('fpsSelect').value));
+                
+                if (!audioContextInstance) {
+                    audioContextInstance = new AudioContext();
+                    const source = audioContextInstance.createMediaElementSource(audioTrack);
+                    mediaStreamDestinationNode = audioContextInstance.createMediaStreamDestination();
+                    source.connect(mediaStreamDestinationNode);
+                    source.connect(audioContextInstance.destination);
+                }
+                stream.addTrack(mediaStreamDestinationNode.stream.getAudioTracks()[0]);
 
-        let audioTrack = new Audio(), isAudioLoaded = false;
-        document.getElementById('audioUpload').onchange = (e) => {
-            audioTrack.src = URL.createObjectURL(e.target.files[0]); isAudioLoaded = true;
-            document.getElementById('audioLabel').innerText = "✓ AUDIO READY";
-        };
-        document.getElementById('playToggle').onclick = () => {
-            if (!isAudioLoaded) return;
-            audioTrack.paused ? audioTrack.play() : audioTrack.pause();
-            updatePlayButtonIcon(!audioTrack.paused);
-        };
-        function updatePlayButtonIcon(p) {
-            document.getElementById('playToggle').innerHTML = p ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 8000000 });
+                mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+                    a.download = `${songInput.value || 'Eleven'}.mp4`; a.click();
+                };
+                mediaRecorder.start();
+                isRecording = true; document.getElementById('recordBtn').classList.add('recording-active');
+                audioTrack.currentTime = 0; audioTrack.play();
+            } else {
+                mediaRecorder.stop(); isRecording = false;
+                document.getElementById('recordBtn').classList.remove('recording-active');
+            }
         }
+        let isRecording = false, audioContextInstance, mediaStreamDestinationNode;
+
+        // --- UI UTILS ---
+        document.getElementById('audioUpload').onchange = (e) => {
+            audioTrack.src = URL.createObjectURL(e.target.files[0]);
+            isAudioLoaded = true; document.getElementById('audioLabel').innerText = "✓ READY";
+        };
+        document.getElementById('playToggle').onclick = () => { audioTrack.paused ? audioTrack.play() : audioTrack.pause(); };
         audioTrack.ontimeupdate = () => {
             document.getElementById('progressBar').value = (audioTrack.currentTime / audioTrack.duration) * 100;
             document.getElementById('currentTime').innerText = formatTime(audioTrack.currentTime);
         };
         audioTrack.onloadedmetadata = () => document.getElementById('durationTime').innerText = formatTime(audioTrack.duration);
-        function formatTime(s) { const m = Math.floor(s/60); const sec = Math.floor(s%60); return `${m}:${sec < 10 ? '0' : ''}${sec}`; }
+        function formatTime(s) { const m = Math.floor(s/60), sec = Math.floor(s%60); return `${m}:${sec<10?'0':''}${sec}`; }
 
-        const fineSlider = document.getElementById('fineOffsetSlider'), defOffset = document.getElementById('defaultOffsetInput');
-        function calculateCombinedOffset() {
-            const combined = (parseFloat(defOffset.value) || 0) + (parseFloat(fineSlider.value) || 0);
-            document.getElementById('sliderValueDisplay').innerText = fineSlider.value + "s";
-            document.getElementById('totalOffsetDisplay').innerText = "TOTAL: " + combined.toFixed(1) + "s";
-            return combined;
+        const fine = document.getElementById('fineOffsetSlider'), def = document.getElementById('defaultOffsetInput');
+        function getOffset() {
+            const val = (parseFloat(def.value)||0) + (parseFloat(fine.value)||0);
+            document.getElementById('sliderValueDisplay').innerText = fine.value + "s";
+            document.getElementById('totalOffsetDisplay').innerText = "TOTAL: " + val.toFixed(1) + "s";
+            return val;
         }
-        fineSlider.oninput = calculateCombinedOffset; defOffset.oninput = calculateCombinedOffset;
 
         document.getElementById('fetchBtn').onclick = () => {
             const q = `https://lrclib.net/api/search?track_name=${encodeURIComponent(songInput.value)}&artist_name=${encodeURIComponent(artistInput.value)}`;
@@ -668,43 +569,40 @@
             fetch(q).then(r => r.json()).then(data => {
                 const win = document.getElementById('lyricsWindow'); win.innerHTML = "";
                 data.forEach(t => {
-                    const row = document.createElement('div'); row.className = "track-selection-item";
-                    row.innerHTML = `<div class="track-title-line">${t.trackName.toUpperCase()}</div><div class="track-meta-line">${t.artistName}</div>`;
-                    row.onclick = () => {
-                        parseLrc(t.syncedLyrics || t.plainLyrics);
-                        document.querySelectorAll('.track-selection-item').forEach(i => i.classList.remove('selected-track'));
-                        row.classList.add('selected-track');
-                    };
-                    win.appendChild(row);
+                    const d = document.createElement('div'); d.className = "track-selection-item";
+                    d.innerHTML = `<div class="track-title-line">${t.trackName.toUpperCase()}</div><div class="track-meta-line">${t.artistName}</div>`;
+                    d.onclick = () => { parseLrc(t.syncedLyrics || t.plainLyrics); document.querySelectorAll('.track-selection-item').forEach(i=>i.classList.remove('selected-track')); d.classList.add('selected-track'); };
+                    win.appendChild(d);
                 });
             });
         };
 
         function parseLrc(lrc) {
-            activeLyricLines = []; if (!lrc) return;
+            activeLyricLines = []; if(!lrc) return;
             lrc.split('\n').forEach(l => {
                 const m = l.match(/\[(\d+):(\d+)\.(\d+)\]/);
                 if (m) activeLyricLines.push({ time: parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3])/100, text: l.replace(/\[.*?\]/g, '').trim() });
             });
         }
 
-        function updateLiveLyricsFromAudio() {
-            if (!activeLyricLines.length) return;
-            const t = audioTrack.currentTime + calculateCombinedOffset();
-            let matched = "";
-            for (let line of activeLyricLines) { if (t >= line.time) matched = line.text; else break; }
-            targetLyricText = matched;
+        function updateLyrics() {
+            const t = audioTrack.currentTime + getOffset();
+            let m = "";
+            for (let line of activeLyricLines) { if (t >= line.time) m = line.text; else break; }
+            targetLyricText = m;
         }
 
-        function calculateGlobalEndTrackFade() {
-            if (audioTrack.duration) {
-                const rem = audioTrack.duration - audioTrack.currentTime;
-                globalTrackFadeAlpha = rem < 3 ? rem / 3 : 1.0;
-            }
+        function initStepper(id, update) {
+            const s = document.getElementById(id);
+            s.querySelectorAll('button')[0].onclick = () => update(-5);
+            s.querySelectorAll('button')[1].onclick = () => update(5);
         }
+        initStepper('songStepper', (v) => { songFontSizeSetting += v; document.getElementById('songSizeVal').innerText = songFontSizeSetting; renderThumbnailPreview(); });
+        initStepper('artistStepper', (v) => { artistFontSizeSetting += v; document.getElementById('artistSizeVal').innerText = artistFontSizeSetting; renderThumbnailPreview(); });
 
+        songInput.oninput = renderThumbnailPreview;
+        artistInput.oninput = renderThumbnailPreview;
         requestAnimationFrame(animate);
-        songInput.oninput = renderThumbnailPreview; artistInput.oninput = renderThumbnailPreview;
     </script>
 </body>
 </html>
