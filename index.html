@@ -281,7 +281,6 @@
             100% { background-color: var(--accent); color: #000; opacity: 1; }
         }
 
-        .stepper-container { display: flex; justify-content: space-around; }
         .stepper {
             display: flex;
             align-items: center;
@@ -349,7 +348,6 @@
     </div>
 
     <div class="workspace">
-        
         <div class="preview-section">
             <canvas id="previewCanvas" width="1280" height="720"></canvas>
             
@@ -403,7 +401,7 @@
             <div class="offset-controls-wrapper">
                 <div>
                     <span class="tag" style="color: var(--text-dim); margin-bottom: 4px;">Default Offset</span>
-                    <input type="number" id="defaultOffsetInput" value="0.0" step="0.1" placeholder="0.0">
+                    <input type="number" id="defaultOffsetInput" value="0.0" step="0.1">
                 </div>
                 <div>
                     <div class="slider-indicator-container">
@@ -466,99 +464,67 @@
     </div>
 
     <script>
-        // --- High Performance Capture & Recording Logic ---
+        // --- CONSTANT FRAME RATE RENDER ENGINE ---
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
+        let recordingTime = 0;
         let audioContextInstance = null;
         let mediaStreamDestinationNode = null;
 
         function toggleRecord() {
-            if (!isRecording) {
-                startRecording();
-            } else {
-                stopRecording();
-            }
+            if (!isRecording) startRecording();
+            else stopRecording();
         }
 
-        function startRecording() {
+        async function startRecording() {
             if (!isAudioLoaded) {
                 alert("Please upload an AUDIO file first.");
                 return;
             }
 
             recordedChunks = [];
-            
             const chosenFPS = parseInt(document.getElementById('fpsSelect').value) || 30;
+            
+            // Fixed-rate stream capture
             const videoStream = canvas.captureStream(chosenFPS);
             
-            try {
-                if (!audioContextInstance) {
-                    audioContextInstance = new (window.AudioContext || window.webkitAudioContext)();
-                    const source = audioContextInstance.createMediaElementSource(audioTrack);
-                    mediaStreamDestinationNode = audioContextInstance.createMediaStreamDestination();
-                    
-                    source.connect(mediaStreamDestinationNode);
-                    source.connect(audioContextInstance.destination); 
-                }
-                
-                const dynamicAudioTrack = mediaStreamDestinationNode.stream.getAudioTracks()[0];
-                if (dynamicAudioTrack) {
-                    videoStream.addTrack(dynamicAudioTrack);
-                }
-            } catch(e) {
-                console.warn("Audio Context setup bypassed or context engine actively tracking stream nodes.", e);
+            if (!audioContextInstance) {
+                audioContextInstance = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioContextInstance.createMediaElementSource(audioTrack);
+                mediaStreamDestinationNode = audioContextInstance.createMediaStreamDestination();
+                source.connect(mediaStreamDestinationNode);
+                source.connect(audioContextInstance.destination);
             }
-
-            let options = { mimeType: 'video/mp4;codecs=h264,aac', videoBitsPerSecond: 5000000 };
             
-            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options = { mimeType: 'video/mp4;codecs=h264', videoBitsPerSecond: 5000000 };
-                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/mp4', videoBitsPerSecond: 5000000 };
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options = { mimeType: 'video/webm;codecs=h264', videoBitsPerSecond: 5000000 };
-                    }
-                }
-            }
+            const audioTrackFromNode = mediaStreamDestinationNode.stream.getAudioTracks()[0];
+            if (audioTrackFromNode) videoStream.addTrack(audioTrackFromNode);
 
-            try {
-                mediaRecorder = new MediaRecorder(videoStream, options);
-            } catch (err) {
-                alert("Codec initialization error. Defaulting container stream mapping: " + err.message);
-                return;
-            }
+            const options = { 
+                mimeType: 'video/mp4;codecs=h264,aac',
+                videoBitsPerSecond: 8000000 // Higher bitrate for quality
+            };
+            
+            // Standardizing for MP4 output
+            mediaRecorder = new MediaRecorder(videoStream, MediaRecorder.isTypeSupported(options.mimeType) ? options : { mimeType: 'video/webm;codecs=h264' });
 
-            mediaRecorder.ondataavailable = function(e) {
-                if (e.data && e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) recordedChunks.push(e.data);
             };
 
-            mediaRecorder.onstop = function() {
+            mediaRecorder.onstop = () => {
                 const blob = new Blob(recordedChunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                
-                const filename = (songInput.value.trim() || 'Untitled').replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                
                 a.href = url;
-                a.download = `${filename}_render.mp4`;
-                document.body.appendChild(a);
+                a.download = `${songInput.value || 'render'}.mp4`;
                 a.click();
-                
-                setTimeout(() => {
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
-                }, 100);
             };
 
-            mediaRecorder.start(1000); 
+            mediaRecorder.start();
             isRecording = true;
-            
-            const btn = document.getElementById('recordBtn');
-            btn.classList.add('recording-active');
-            btn.innerText = "Stop";
+            document.getElementById('recordBtn').classList.add('recording-active');
+            document.getElementById('recordBtn').innerText = "Stop";
 
             audioTrack.currentTime = 0;
             audioTrack.play();
@@ -566,29 +532,15 @@
         }
 
         function stopRecording() {
-            if (mediaRecorder && mediaRecorder.state !== "inactive") {
-                mediaRecorder.stop();
-            }
+            if (mediaRecorder) mediaRecorder.stop();
             isRecording = false;
-            
-            const btn = document.getElementById('recordBtn');
-            btn.classList.remove('recording-active');
-            btn.innerText = "Record";
-
+            document.getElementById('recordBtn').classList.remove('recording-active');
+            document.getElementById('recordBtn').innerText = "Record";
             audioTrack.pause();
             updatePlayButtonIcon(false);
         }
 
-        function updatePlayButtonIcon(isPlaying) {
-            const playToggle = document.getElementById('playToggle');
-            if (isPlaying) {
-                playToggle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
-            } else {
-                playToggle.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
-            }
-        }
-
-        // --- Live Preview Engine & Animation Logic ---
+        // --- PREVIEW & ANIMATION LOGIC ---
         const canvas = document.getElementById('previewCanvas');
         const ctx = canvas.getContext('2d');
         const songInput = document.getElementById('songTitle');
@@ -598,11 +550,9 @@
         let logoImg = new Image();
         let driftTime = 0;
         let customFont = null;
-        
         let activeLyricLines = []; 
+        let targetLyricText = "";
         let currentDisplayedLyric = "";
-        let targetLyricText = "";     
-        
         let lyricAlpha = 0;
         let animState = "idle"; 
         let globalTrackFadeAlpha = 1.0; 
@@ -610,114 +560,30 @@
         let lastSpinTrigger = 0;
         const spinDuration = 1500; 
         const spinCooldown = 5000; 
-        const rotations = 4;       
+        const rotations = 4;
 
         let songFontSizeSetting = 210;   
         let artistFontSizeSetting = 60;
 
-        function initStepperControls(containerId, updateFn) {
-            const container = document.getElementById(containerId);
-            const btns = container.getElementsByClassName('step-btn');
-            const display = container.getElementsByClassName('val')[0];
-
-            btns[0].addEventListener('click', () => updateFn(-5, display));
-            btns[1].addEventListener('click', () => updateFn(5, display));
-        }
-
-        initStepperControls('songStepper', (amount, display) => {
-            songFontSizeSetting = Math.max(20, Math.min(400, songFontSizeSetting + amount));
-            display.innerText = songFontSizeSetting;
-            renderThumbnailPreview();
-        });
-
-        initStepperControls('artistStepper', (amount, display) => {
-            artistFontSizeSetting = Math.max(10, Math.min(250, artistFontSizeSetting + amount));
-            display.innerText = artistFontSizeSetting;
-            renderThumbnailPreview();
-        });
-
-        songInput.addEventListener('input', renderThumbnailPreview);
-        artistInput.addEventListener('input', renderThumbnailPreview);
-
-        const defaultOffsetInput = document.getElementById('defaultOffsetInput');
-        const fineOffsetSlider = document.getElementById('fineOffsetSlider');
-        const sliderValueDisplay = document.getElementById('sliderValueDisplay');
-        const totalOffsetDisplay = document.getElementById('totalOffsetDisplay');
-
-        if (localStorage.getItem('es_default_offset') !== null) {
-            const cachedVal = parseFloat(localStorage.getItem('es_default_offset')) || 0;
-            defaultOffsetInput.value = formatDecimalString(cachedVal);
-        }
-
-        function formatDecimalString(val) {
-            let str = val.toFixed(1);
-            if (str === "-0.0") return "-0.0";
-            if (str === "0.0") return "0.0";
-            return str;
-        }
-
-        function calculateCombinedOffset() {
-            const baseVal = parseFloat(defaultOffsetInput.value) || 0;
-            const sliderVal = parseFloat(fineOffsetSlider.value) || 0;
-            const combined = baseVal + sliderVal;
-            
-            const formattedSliderText = (sliderVal >= 0 ? "+" : "") + formatDecimalString(sliderVal) + "s";
-            sliderValueDisplay.innerText = formattedSliderText;
-
-            totalOffsetDisplay.innerText = "TOT: " + (combined >= 0 ? "+" : "") + formatDecimalString(combined) + "s";
-            return combined;
-        }
-
-        defaultOffsetInput.addEventListener('blur', function() {
-            let val = parseFloat(defaultOffsetInput.value) || 0;
-            defaultOffsetInput.value = formatDecimalString(val);
-        });
-
-        defaultOffsetInput.addEventListener('input', function() {
-            localStorage.setItem('es_default_offset', defaultOffsetInput.value);
-            calculateCombinedOffset();
-        });
-
-        fineOffsetSlider.addEventListener('input', calculateCombinedOffset);
-        calculateCombinedOffset();
-
-        // --- Local Directory Layout Links ---
-        const fontUrl = 'assets/es_font.otf';
-        const fontFace = new FontFace('CustomCanvasFont', `url(${fontUrl})`);
-        fontFace.load().then((loaded) => {
-            document.fonts.add(loaded);
-            customFont = "CustomCanvasFont";
-            renderThumbnailPreview();
-        }).catch(err => {
-            console.warn("Local asset parsing fallback assigned.", err);
-        });
-
-        currentBg.crossOrigin = "anonymous";
-        currentBg.onload = function() { renderThumbnailPreview(); };
+        // Assets
         currentBg.src = 'assets/stock_bg.jpg';
-        
-        logoImg.crossOrigin = "anonymous";
-        logoImg.onload = function() { renderThumbnailPreview(); };
         logoImg.src = 'assets/es_ic.png';
+        const fontFace = new FontFace('CustomCanvasFont', 'url(assets/es_font.otf)');
+        fontFace.load().then(f => {
+            document.fonts.add(f);
+            customFont = "CustomCanvasFont";
+        });
 
         function animate(timestamp) {
             driftTime += 0.025;
-            
             if (!lastSpinTrigger) lastSpinTrigger = timestamp;
             const elapsed = timestamp - lastSpinTrigger;
+            if (elapsed >= spinCooldown) lastSpinTrigger = timestamp;
 
             let logoRotation = 0;
-            let spinSpeed = 0;
-
-            if (elapsed >= spinCooldown) {
-                lastSpinTrigger = timestamp;
-            }
-
             if (elapsed < spinDuration) {
                 const t = elapsed / spinDuration;
-                const ease = 1 - Math.pow(1 - t, 3); 
-                logoRotation = ease * (Math.PI * 2 * rotations);
-                spinSpeed = Math.pow(1 - t, 2) * 15; 
+                logoRotation = (1 - Math.pow(1 - t, 3)) * (Math.PI * 2 * rotations);
             }
 
             const offX = Math.cos(driftTime * 0.9) * 15;
@@ -727,472 +593,179 @@
             updateLiveLyricsFromAudio();
             interpolateFadeTransitions();
             calculateGlobalEndTrackFade();
-
-            draw(offX, offY, scale, logoRotation, spinSpeed);
+            draw(offX, offY, scale, logoRotation);
+            
             requestAnimationFrame(animate);
         }
 
-        function calculateGlobalEndTrackFade() {
-            if (isAudioLoaded && audioTrack.duration) {
-                const timeRemaining = audioTrack.duration - audioTrack.currentTime;
-                if (timeRemaining <= 3) {
-                    globalTrackFadeAlpha = Math.max(0, timeRemaining / 3);
-                } else {
-                    globalTrackFadeAlpha = 1.0;
+        function draw(x, y, s, rot) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = globalTrackFadeAlpha;
+            if (currentBg.complete) ctx.drawImage(currentBg, 0, 0, canvas.width, canvas.height);
+
+            // Logo
+            if (logoImg.complete) {
+                ctx.save();
+                ctx.translate(1205, 75);
+                ctx.rotate(rot);
+                ctx.drawImage(logoImg, -42, -42, 85, 85);
+                ctx.restore();
+            }
+
+            // Lyrics
+            if (currentDisplayedLyric) {
+                ctx.save();
+                ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
+                ctx.font = `${150 * s}px ${customFont || 'sans-serif'}`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "white";
+                ctx.globalAlpha = lyricAlpha * globalTrackFadeAlpha;
+                ctx.shadowColor = "black";
+                ctx.shadowBlur = 30;
+                
+                // Text width safety
+                let metrics = ctx.measureText(currentDisplayedLyric.toUpperCase());
+                if (metrics.width > 1100) {
+                    ctx.font = `${(150 * s) * (1100 / metrics.width)}px ${customFont || 'sans-serif'}`;
                 }
-            } else {
-                globalTrackFadeAlpha = 1.0;
+                
+                ctx.fillText(currentDisplayedLyric.toUpperCase(), 0, 0);
+                ctx.restore();
             }
         }
 
-        function interpolateFadeTransitions() {
-            if (currentDisplayedLyric !== targetLyricText && animState === "idle") {
-                animState = "fading_out";
+        // Logic Helpers
+        function updateLiveLyricsFromAudio() {
+            if (!activeLyricLines.length) return;
+            const offset = calculateCombinedOffset();
+            const time = audioTrack.currentTime + offset;
+            let matched = "";
+            for (let line of activeLyricLines) {
+                if (time >= line.time) matched = line.text;
+                else break;
             }
+            targetLyricText = matched;
+        }
 
+        function interpolateFadeTransitions() {
+            if (currentDisplayedLyric !== targetLyricText && animState === "idle") animState = "fading_out";
             if (animState === "fading_out") {
-                lyricAlpha -= 0.08; 
+                lyricAlpha -= 0.1;
                 if (lyricAlpha <= 0) {
-                    lyricAlpha = 0;
                     currentDisplayedLyric = targetLyricText;
                     animState = "fading_in";
                 }
             } else if (animState === "fading_in") {
-                if (currentDisplayedLyric === "") {
-                    lyricAlpha = 0;
-                    animState = "idle";
-                } else {
-                    lyricAlpha += 0.08;
-                    if (lyricAlpha >= 1.0) {
-                        lyricAlpha = 1.0;
-                        animState = "idle";
-                    }
-                }
+                lyricAlpha += 0.1;
+                if (lyricAlpha >= 1) animState = "idle";
             }
         }
 
-        function draw(x, y, s, rot, blurIntensity) {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            if (currentBg.complete) {
-                ctx.save();
-                ctx.globalAlpha = globalTrackFadeAlpha;
-                ctx.drawImage(currentBg, 0, 0, canvas.width, canvas.height);
-                ctx.restore();
-            }
-
-            if (logoImg.complete) {
-                const logoSize = 85; 
-                const margin = 30; 
-                const centerX = canvas.width - margin - logoSize/2;
-                const centerY = margin + logoSize/2;
-
-                ctx.save();
-                ctx.globalAlpha = globalTrackFadeAlpha;
-
-                if (blurIntensity > 0.1) {
-                    for (let i = 1; i <= 3; i++) {
-                        ctx.save();
-                        ctx.translate(centerX, centerY);
-                        ctx.rotate(rot - (i * 0.05 * blurIntensity));
-                        ctx.globalAlpha = (0.4 / i) * globalTrackFadeAlpha;
-                        ctx.drawImage(logoImg, -logoSize/2, -logoSize/2, logoSize, logoSize);
-                        ctx.restore();
-                    }
-                }
-
-                ctx.save();
-                ctx.translate(centerX, centerY);
-                ctx.rotate(rot);
-                ctx.drawImage(logoImg, -logoSize/2, -logoSize/2, logoSize, logoSize);
-                ctx.restore();
-                ctx.restore();
-            }
-
-            if (currentDisplayedLyric) {
-                let textToRender = currentDisplayedLyric.toUpperCase();
-
-                ctx.save();
-                ctx.translate(canvas.width / 2 + x, canvas.height / 2 + y);
-                
-                let targetFontSize = 150 * s; 
-                ctx.font = `${targetFontSize}px ${customFont || 'sans-serif'}`;
-                
-                let metrics = ctx.measureText(textToRender);
-                const maximumAllowedWidth = canvas.width - 160; 
-
-                if (metrics.width > maximumAllowedWidth) {
-                    const dynamicScalingRatio = maximumAllowedWidth / metrics.width;
-                    targetFontSize = targetFontSize * dynamicScalingRatio;
-                    ctx.font = `${targetFontSize}px ${customFont || 'sans-serif'}`;
-                }
-
-                ctx.globalAlpha = Math.max(0, Math.min(1, lyricAlpha)) * globalTrackFadeAlpha;
-                
-                ctx.fillStyle = "white";
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
-                ctx.shadowBlur = 35;
-                ctx.fillText(textToRender, 0, 0);
-                ctx.restore();
+        function calculateGlobalEndTrackFade() {
+            if (audioTrack.duration) {
+                const rem = audioTrack.duration - audioTrack.currentTime;
+                globalTrackFadeAlpha = rem < 3 ? rem / 3 : 1;
             }
         }
 
-        requestAnimationFrame(animate);
-
-        // --- Optimized Autopositioning Thumbnail Engine ---
-        const thumbCanvas = document.getElementById('thumbPreviewCanvas');
-        const tCtx = thumbCanvas.getContext('2d');
-        const thumbBtn = document.getElementById('thumbBtn');
-
-        function renderThumbnailPreview() {
-            tCtx.clearRect(0, 0, thumbCanvas.width, thumbCanvas.height);
-            tCtx.fillStyle = '#000';
-            tCtx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height);
-
-            if (currentBg.complete) {
-                tCtx.drawImage(currentBg, 0, 0, thumbCanvas.width, thumbCanvas.height);
-            }
-
-            if (logoImg.complete) {
-                const lSize = 85;
-                const margin = 30;
-                tCtx.save();
-                tCtx.drawImage(logoImg, thumbCanvas.width - margin - lSize, margin, lSize, lSize);
-                tCtx.restore();
-            }
-
-            const titleString = (songInput.value.trim() || "UNTITLED").toUpperCase();
-            const artistString = (artistInput.value.trim() || "ARTIST").toUpperCase();
-            const chosenFont = customFont || 'sans-serif';
-
-            tCtx.save();
-            tCtx.textAlign = "center";
-            tCtx.fillStyle = "#ffffff";
-            tCtx.shadowColor = "rgba(0, 0, 0, 0.9)";
-            tCtx.shadowBlur = 35;
-
-            const horizontalSafetyBoundary = thumbCanvas.width - 120;
-            let dynamicSongFontSize = songFontSizeSetting;
-
-            tCtx.font = `${dynamicSongFontSize}px ${chosenFont}`;
-            let songMetrics = tCtx.measureText(titleString);
-            
-            if (songMetrics.width > horizontalSafetyBoundary) {
-                dynamicSongFontSize = Math.floor(dynamicSongFontSize * (horizontalSafetyBoundary / songMetrics.width));
-                tCtx.font = `${dynamicSongFontSize}px ${chosenFont}`;
-                songMetrics = tCtx.measureText(titleString);
-            }
-
-            const songHeight = songMetrics.actualBoundingBoxAscent + songMetrics.actualBoundingBoxDescent;
-
-            tCtx.font = `${artistFontSizeSetting}px ${chosenFont}`;
-            const artistMetrics = tCtx.measureText(artistString);
-            const artistHeight = artistMetrics.actualBoundingBoxAscent + artistMetrics.actualBoundingBoxDescent;
-
-            const tailoredSpacingGap = 35; 
-            const totalTextStackHeight = songHeight + tailoredSpacingGap + artistHeight;
-
-            const stackStartY = (thumbCanvas.height - totalTextStackHeight) / 2 + songHeight;
-
-            tCtx.font = `${dynamicSongFontSize}px ${chosenFont}`;
-            tCtx.textBaseline = "alphabetic";
-            tCtx.fillText(titleString, thumbCanvas.width / 2, stackStartY);
-
-            tCtx.font = `${artistFontSizeSetting}px ${chosenFont}`;
-            tCtx.textBaseline = "top";
-            tCtx.fillText(artistString, thumbCanvas.width / 2, stackStartY + tailoredSpacingGap);
-            
-            tCtx.restore();
+        // Steppers & UI
+        function initStepper(id, valRef, step, displayId) {
+            const el = document.getElementById(id);
+            el.children[1].onclick = () => { valRef.v -= step; document.getElementById(displayId).innerText = valRef.v; renderThumbnailPreview(); };
+            el.children[3].onclick = () => { valRef.v += step; document.getElementById(displayId).innerText = valRef.v; renderThumbnailPreview(); };
         }
+        let sSize = { v: 210 }, aSize = { v: 60 };
+        initStepper('songStepper', sSize, 5, 'songSizeVal');
+        initStepper('artistStepper', aSize, 5, 'artistSizeVal');
 
-        thumbBtn.addEventListener('click', function() {
-            renderThumbnailPreview();
+        // Offset Engine
+        const defaultOffsetInput = document.getElementById('defaultOffsetInput');
+        const fineOffsetSlider = document.getElementById('fineOffsetSlider');
+        function calculateCombinedOffset() {
+            const total = (parseFloat(defaultOffsetInput.value) || 0) + (parseFloat(fineOffsetSlider.value) || 0);
+            document.getElementById('sliderValueDisplay').innerText = fineOffsetSlider.value + "s";
+            document.getElementById('totalOffsetDisplay').innerText = "TOT: " + total.toFixed(1) + "s";
+            return total;
+        }
+        fineOffsetSlider.oninput = calculateCombinedOffset;
+        defaultOffsetInput.oninput = calculateCombinedOffset;
 
-            const storageUrl = thumbCanvas.toDataURL("image/png");
-            const anchor = document.createElement('a');
-            anchor.download = "eleven_studios_thumbnail.png";
-            anchor.href = storageUrl;
-            document.body.appendChild(anchor);
-            anchor.click();
-            document.body.removeChild(anchor);
-        });
-
-        // ==========================================
-        //         CORE AUDIO & LYRICS INTERACTION
-        // ==========================================
-
+        // Player Controls
         let audioTrack = new Audio();
         let isAudioLoaded = false;
-        let isUserDraggingSlider = false;
-
-        const audioIn = document.getElementById('audioUpload');
-        const bgIn = document.getElementById('bgUpload');
-        const fontIn = document.getElementById('fontUpload');
-
-        const audioLabel = document.getElementById('audioLabel');
-        const bgLabel = document.getElementById('bgLabel');
-        const fontLabel = document.getElementById('fontLabel');
-
-        function applyWhiteHighlight(element, text) {
-            element.innerText = "✓ " + text;
-            element.style.color = "#ffffff";
-            element.style.borderColor = "#ffffff";
-            element.style.background = "#111111";
-            element.style.textShadow = "0 0 8px rgba(255, 255, 255, 0.4)";
+        document.getElementById('audioUpload').onchange = (e) => {
+            audioTrack.src = URL.createObjectURL(e.target.files[0]);
+            isAudioLoaded = true;
+            document.getElementById('audioLabel').innerText = "AUDIO READY";
+        };
+        document.getElementById('playToggle').onclick = () => {
+            if (audioTrack.paused) audioTrack.play(); else audioTrack.pause();
+            updatePlayButtonIcon(!audioTrack.paused);
+        };
+        function updatePlayButtonIcon(play) {
+            document.getElementById('playToggle').innerHTML = play ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>` : `<svg width="16" height="16" viewBox="0 0 24 24" fill="black"><path d="M8 5v14l11-7z"/></svg>`;
         }
+        audioTrack.ontimeupdate = () => {
+            const prog = (audioTrack.currentTime / audioTrack.duration) * 100;
+            document.getElementById('progressBar').value = prog;
+            document.getElementById('currentTime').innerText = Math.floor(audioTrack.currentTime / 60) + ":" + String(Math.floor(audioTrack.currentTime % 60)).padStart(2, '0');
+        };
 
-        audioIn.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                audioTrack.src = URL.createObjectURL(file);
-                audioTrack.load();
-                isAudioLoaded = true;
-                applyWhiteHighlight(audioLabel, "AUDIO READY");
-            }
-        });
-
-        bgIn.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    currentBg = new Image();
-                    currentBg.onload = function() {
-                        applyWhiteHighlight(bgLabel, "BG REPLACED");
-                        renderThumbnailPreview();
+        // Fetch Lyrics
+        document.getElementById('fetchBtn').onclick = () => {
+            const q = `https://lrclib.net/api/search?track_name=${encodeURIComponent(songInput.value)}&artist_name=${encodeURIComponent(artistInput.value)}`;
+            document.getElementById('lyricsDisplayCard').style.display = "block";
+            fetch(q).then(r => r.json()).then(data => {
+                const win = document.getElementById('lyricsWindow');
+                win.innerHTML = "";
+                data.forEach(t => {
+                    const d = document.createElement('div');
+                    d.className = "track-selection-item";
+                    d.innerHTML = `<strong>${t.trackName}</strong><br><small>${t.artistName}</small>`;
+                    d.onclick = () => {
+                        parseLrc(t.syncedLyrics || t.plainLyrics);
+                        document.querySelectorAll('.track-selection-item').forEach(i => i.classList.remove('selected-track'));
+                        d.classList.add('selected-track');
                     };
-                    currentBg.src = event.target.result;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-
-        fontIn.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const uniqueFontName = 'UploadedWorkspaceFont_' + Date.now();
-                    const customFace = new FontFace(uniqueFontName, event.target.result);
-                    customFace.load().then(function(loadedFace) {
-                        document.fonts.add(loadedFace);
-                        customFont = uniqueFontName;
-                        applyWhiteHighlight(fontLabel, "FONT LINKED");
-                        renderThumbnailPreview();
-                    }).catch(err => alert("Font compiler failed."));
-                };
-                reader.readAsArrayBuffer(file);
-            }
-        });
-
-        const playToggle = document.getElementById('playToggle');
-        const progressBar = document.getElementById('progressBar');
-        const currentTimeText = document.getElementById('currentTime');
-        const durationTimeText = document.getElementById('durationTime');
-
-        function formatTime(secs) {
-            if (isNaN(secs)) return "0:00";
-            const mins = Math.floor(secs / 60);
-            const remainingSecs = Math.floor(secs % 60);
-            return `${mins}:${remainingSecs < 10 ? '0' : ''}${remainingSecs}`;
-        }
-
-        playToggle.addEventListener('click', function() {
-            if (!isAudioLoaded) {
-                alert("Please upload an AUDIO file first.");
-                return;
-            }
-            if (audioTrack.paused) {
-                audioTrack.play();
-                updatePlayButtonIcon(true);
-            } else {
-                audioTrack.pause();
-                updatePlayButtonIcon(false);
-            }
-        });
-
-        audioTrack.addEventListener('timeupdate', function() {
-            if (!audioTrack.duration || isUserDraggingSlider) return;
-            const pct = (audioTrack.currentTime / audioTrack.duration) * 100;
-            progressBar.value = pct;
-            currentTimeText.innerText = formatTime(audioTrack.currentTime);
-        });
-
-        audioTrack.addEventListener('ended', function() {
-            updatePlayButtonIcon(false);
-            if (isRecording) {
-                stopRecording();
-            }
-        });
-
-        audioTrack.addEventListener('loadedmetadata', function() {
-            durationTimeText.innerText = formatTime(audioTrack.duration);
-        });
-
-        progressBar.addEventListener('mousedown', function() { isUserDraggingSlider = true; });
-        progressBar.addEventListener('touchstart', function() { isUserDraggingSlider = true; });
-
-        progressBar.addEventListener('input', function() {
-            if (!audioTrack.duration) return;
-            const TargetRuntime = (progressBar.value / 100) * audioTrack.duration;
-            currentTimeText.innerText = formatTime(TargetRuntime);
-        });
-
-        progressBar.addEventListener('change', function() {
-            if (audioTrack.duration) {
-                audioTrack.currentTime = (progressBar.value / 100) * audioTrack.duration;
-            }
-            isUserDraggingSlider = false;
-        });
-
-        const fetchBtn = document.getElementById('fetchBtn');
-        const lyricsDisplayCard = document.getElementById('lyricsDisplayCard');
-        const lyricsWindow = document.getElementById('lyricsWindow');
-        const resultsHeaderTag = document.getElementById('resultsHeaderTag');
-
-        fetchBtn.addEventListener('click', function() {
-            const titleVal = songInput.value.trim();
-            const artistVal = artistInput.value.trim();
-
-            if (!titleVal) {
-                alert("Please fill out the Song Title field.");
-                return;
-            }
-
-            resultsHeaderTag.innerText = "Select Track from LRCLIB Database";
-            lyricsDisplayCard.style.display = "block";
-            lyricsWindow.innerHTML = "<div style='color:#777; font-size:12px; padding:10px;'>Contacting servers... Parsing index records...</div>";
-
-            setTimeout(() => lyricsDisplayCard.scrollIntoView({ behavior: 'smooth' }), 100);
-
-            const queryUrl = `https://lrclib.net/api/search?track_name=${encodeURIComponent(titleVal)}&artist_name=${encodeURIComponent(artistVal)}`;
-
-            fetch(queryUrl)
-                .then(res => res.json())
-                .then(data => {
-                    if (!data || data.length === 0) {
-                        lyricsWindow.innerHTML = "<div style='color:#777; font-size:12px; padding:10px;'>0 search results returned. Check metadata query parameters.</div>";
-                        return;
-                    }
-
-                    lyricsWindow.innerHTML = ""; 
-
-                    data.forEach((track) => {
-                        const row = document.createElement('div');
-                        row.className = "track-selection-item";
-                        
-                        let durationLabel = "0:00";
-                        if (track.duration) {
-                            durationLabel = formatTime(track.duration);
-                        } else if (track.syncedLyrics || track.plainLyrics) {
-                            const lines = (track.syncedLyrics || "").split('\n');
-                            const timeReg = /\[(\d+):(\d+)\.(\d+)\]/;
-                            for (let i = lines.length - 1; i >= 0; i--) {
-                                const m = timeReg.exec(lines[i]);
-                                if (m) {
-                                    durationLabel = `${m[1]}:${m[2]}`;
-                                    break;
-                                }
-                            }
-                        }
-
-                        row.innerHTML = `
-                            <div class="track-title-line">
-                                <span>${track.trackName.toUpperCase()}</span>
-                                <span class="length-badge">${durationLabel}</span>
-                            </div>
-                            <div class="track-meta-line">Artist: ${track.artistName} | Album: ${track.albumName || 'N/A'}</div>
-                        `;
-
-                        row.addEventListener('click', function() {
-                            const items = lyricsWindow.getElementsByClassName('track-selection-item');
-                            for (let el of items) {
-                                el.classList.remove('selected-track');
-                            }
-                            row.classList.add('selected-track');
-                            
-                            parseLrcString(track.syncedLyrics || track.plainLyrics);
-                            resultsHeaderTag.innerText = `ACTIVE: ${track.trackName.toUpperCase()}`;
-                        });
-
-                        lyricsWindow.appendChild(row);
-                    });
-                })
-                .catch(err => {
-                    lyricsWindow.innerText = `Connection failed: ${err.message}`;
+                    win.appendChild(d);
                 });
-        });
+            });
+        };
 
-        function parseLrcString(lrcText) {
+        function parseLrc(lrc) {
             activeLyricLines = [];
-            targetLyricText = "";
-            currentDisplayedLyric = "";
-            lyricAlpha = 0;
-            animState = "idle";
-            
-            if (!lrcText) return;
-
-            const lines = lrcText.split('\n');
-            const timeReg = /\[(\d+):(\d+)\.(\d+)\]/; 
-
-            lines.forEach(line => {
-                const match = timeReg.exec(line);
-                if (match) {
-                    const minutes = parseInt(match[1]);
-                    const seconds = parseInt(match[2]);
-                    const hundredths = parseInt(match[3]);
-                    
-                    const totalSeconds = (minutes * 60) + seconds + (hundredths / 100);
-                    const lyricStr = line.replace(timeReg, '').trim();
-                    
-                    activeLyricLines.push({
-                        time: totalSeconds,
-                        text: lyricStr
-                    });
-                } else if(line.trim() && !line.startsWith('[')) {
-                    activeLyricLines.push({
-                        time: -1,
-                        text: line.trim()
-                    });
+            if (!lrc) return;
+            const lines = lrc.split('\n');
+            lines.forEach(l => {
+                const m = l.match(/\[(\d+):(\d+)\.(\d+)\]/);
+                if (m) {
+                    activeLyricLines.push({ time: parseInt(m[1]) * 60 + parseInt(m[2]) + parseInt(m[3]) / 100, text: l.replace(/\[.*?\]/g, '').trim() });
                 }
             });
-
-            activeLyricLines.sort((a, b) => a.time - b.time);
         }
 
-        function updateLiveLyricsFromAudio() {
-            if (!isAudioLoaded || activeLyricLines.length === 0) {
-                return;
-            }
-
-            const activeOffset = calculateCombinedOffset();
-            const playTime = audioTrack.currentTime + activeOffset;
-
-            if (activeLyricLines[0].time === -1) {
-                const totalDur = audioTrack.duration || 180;
-                const chunk = totalDur / activeLyricLines.length;
-                const currentIdx = Math.floor(audioTrack.currentTime / chunk);
-                const targetedLine = activeLyricLines[currentIdx];
-                targetLyricText = targetedLine ? targetedLine.text : "";
-                return;
-            }
-
-            let matchedText = "";
-            for (let i = 0; i < activeLyricLines.length; i++) {
-                if (playTime >= activeLyricLines[i].time) {
-                    matchedText = activeLyricLines[i].text;
-                } else {
-                    break;
-                }
-            }
-            
-            targetLyricText = matchedText;
+        // Thumbnail Preview
+        const tCanvas = document.getElementById('thumbPreviewCanvas');
+        const tCtx = tCanvas.getContext('2d');
+        function renderThumbnailPreview() {
+            tCtx.drawImage(currentBg, 0, 0, 1280, 720);
+            tCtx.font = `${sSize.v}px ${customFont || 'sans-serif'}`;
+            tCtx.fillStyle = "white";
+            tCtx.textAlign = "center";
+            tCtx.fillText((songInput.value || "SONG").toUpperCase(), 640, 360);
+            tCtx.font = `${aSize.v}px ${customFont || 'sans-serif'}`;
+            tCtx.fillText((artistInput.value || "ARTIST").toUpperCase(), 640, 430);
         }
+        document.getElementById('thumbBtn').onclick = () => {
+            renderThumbnailPreview();
+            const link = document.createElement('a');
+            link.download = 'thumb.png';
+            link.href = tCanvas.toDataURL();
+            link.click();
+        };
+
+        requestAnimationFrame(animate);
     </script>
-
 </body>
 </html>
