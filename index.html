@@ -470,6 +470,8 @@
         let mediaRecorder = null;
         let recordedChunks = [];
         let isRecording = false;
+        let audioContextInstance = null;
+        let mediaStreamDestinationNode = null;
 
         function toggleRecord() {
             if (!isRecording) {
@@ -487,40 +489,43 @@
 
             recordedChunks = [];
             
-            // Fetch chosen frames per second rate dynamically from user control setting
             const chosenFPS = parseInt(document.getElementById('fpsSelect').value) || 30;
             const videoStream = canvas.captureStream(chosenFPS);
             
-            // Link raw audio track node to combine streams if audio exists
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioCtx.createMediaElementSource(audioTrack);
-                const dest = audioCtx.createMediaStreamDestination();
+                if (!audioContextInstance) {
+                    audioContextInstance = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioContextInstance.createMediaElementSource(audioTrack);
+                    mediaStreamDestinationNode = audioContextInstance.createMediaStreamDestination();
+                    
+                    source.connect(mediaStreamDestinationNode);
+                    source.connect(audioContextInstance.destination); 
+                }
                 
-                source.connect(dest);
-                source.connect(audioCtx.destination); // Keep it playing through system speakers
-                
-                const audioTrackStream = dest.stream.getAudioTracks()[0];
-                if (audioTrackStream) {
-                    videoStream.addTrack(audioTrackStream);
+                const dynamicAudioTrack = mediaStreamDestinationNode.stream.getAudioTracks()[0];
+                if (dynamicAudioTrack) {
+                    videoStream.addTrack(dynamicAudioTrack);
                 }
             } catch(e) {
-                console.warn("Audio Context linking skipped or already initialized.", e);
+                console.warn("Audio Context setup bypassed or context engine actively tracking stream nodes.", e);
             }
 
-            // Determine optimal high-profile MP4 encoding format container
-            let options = { mimeType: 'video/mp4;codecs=h264' };
+            let options = { mimeType: 'video/mp4;codecs=h264,aac', videoBitsPerSecond: 5000000 };
+            
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                options = { mimeType: 'video/webm;codecs=h264' };
+                options = { mimeType: 'video/mp4;codecs=h264', videoBitsPerSecond: 5000000 };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: 'video/webm' }; 
+                    options = { mimeType: 'video/mp4', videoBitsPerSecond: 5000000 };
+                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                        options = { mimeType: 'video/webm;codecs=h264', videoBitsPerSecond: 5000000 };
+                    }
                 }
             }
 
             try {
                 mediaRecorder = new MediaRecorder(videoStream, options);
             } catch (err) {
-                alert("Failed to initialize video codec package: " + err.message);
+                alert("Codec initialization error. Defaulting container stream mapping: " + err.message);
                 return;
             }
 
@@ -531,15 +536,14 @@
             };
 
             mediaRecorder.onstop = function() {
-                const blob = new Blob(recordedChunks, { type: mediaRecorder.mimeType });
+                const blob = new Blob(recordedChunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 
-                const ext = mediaRecorder.mimeType.includes('mp4') ? 'mp4' : 'webm';
                 const filename = (songInput.value.trim() || 'Untitled').replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 
                 a.href = url;
-                a.download = `${filename}_render.${ext}`;
+                a.download = `${filename}_render.mp4`;
                 document.body.appendChild(a);
                 a.click();
                 
@@ -556,7 +560,6 @@
             btn.classList.add('recording-active');
             btn.innerText = "Stop";
 
-            // Force the music tracking play state updates instantly on record start
             audioTrack.currentTime = 0;
             audioTrack.play();
             updatePlayButtonIcon(true);
@@ -572,7 +575,6 @@
             btn.classList.remove('recording-active');
             btn.innerText = "Record";
 
-            // Pause track when recording is intentionally stopped
             audioTrack.pause();
             updatePlayButtonIcon(false);
         }
@@ -610,7 +612,6 @@
         const spinCooldown = 5000; 
         const rotations = 4;       
 
-        // --- Configurable Text Sizing Logic ---
         let songFontSizeSetting = 210;   
         let artistFontSizeSetting = 60;
 
@@ -638,7 +639,6 @@
         songInput.addEventListener('input', renderThumbnailPreview);
         artistInput.addEventListener('input', renderThumbnailPreview);
 
-        // --- Dynamic Decoupled Offset Precision Formatting Logic ---
         const defaultOffsetInput = document.getElementById('defaultOffsetInput');
         const fineOffsetSlider = document.getElementById('fineOffsetSlider');
         const sliderValueDisplay = document.getElementById('sliderValueDisplay');
@@ -681,22 +681,24 @@
         fineOffsetSlider.addEventListener('input', calculateCombinedOffset);
         calculateCombinedOffset();
 
-        // Custom Font Default Load
-        const fontUrl = 'https://elevenstudios-lyr.github.io/core/assets/es_font.otf';
+        // --- Local Directory Layout Links ---
+        const fontUrl = 'assets/es_font.otf';
         const fontFace = new FontFace('CustomCanvasFont', `url(${fontUrl})`);
         fontFace.load().then((loaded) => {
             document.fonts.add(loaded);
             customFont = "CustomCanvasFont";
             renderThumbnailPreview();
+        }).catch(err => {
+            console.warn("Local asset parsing fallback assigned.", err);
         });
 
         currentBg.crossOrigin = "anonymous";
         currentBg.onload = function() { renderThumbnailPreview(); };
-        currentBg.src = 'https://elevenstudios-lyr.github.io/core/assets/stock_bg.jpg';
+        currentBg.src = 'assets/stock_bg.jpg';
         
         logoImg.crossOrigin = "anonymous";
         logoImg.onload = function() { renderThumbnailPreview(); };
-        logoImg.src = 'https://elevenstudios-lyr.github.io/core/assets/es_ic.png';
+        logoImg.src = 'assets/es_ic.png';
 
         function animate(timestamp) {
             driftTime += 0.025;
